@@ -100,7 +100,9 @@ export async function POST(request: NextRequest) {
     return fail({ code: 'UNAUTHENTICATED', message: 'Sign in to contribute' });
   }
 
-  const parsed = CreateBody.safeParse(await request.json());
+  // A body that isn't JSON is a client mistake, not a server fault: let Zod
+  // reject it as a 400 instead of letting the parse error escape as a 500.
+  const parsed = CreateBody.safeParse(await request.json().catch(() => undefined));
   if (!parsed.success) {
     return fail(validationError('Invalid question', parsed.error.flatten().fieldErrors));
   }
