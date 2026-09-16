@@ -95,6 +95,17 @@ describe('createQuestion', () => {
     expect(!result.ok && result.error.message).toMatch(/exactly one/i);
   });
 
+  it('rejects a reference that is not an http(s) link, including javascript: URLs', async () => {
+    for (const reference of ['see the RFC', 'javascript:alert(1)']) {
+      const result = await createQuestion(
+        validInput({ answer: { modelAnswer: 'An answer.', keyPoints: [], references: [reference] } }),
+        deps(),
+      );
+
+      expect(!result.ok && result.error.message).toMatch(/http or https links/);
+    }
+  });
+
   it('rejects a duplicate stem', async () => {
     await createQuestion(validInput(), d);
     const second = await createQuestion(validInput(), d);

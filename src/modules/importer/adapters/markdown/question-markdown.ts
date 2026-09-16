@@ -59,7 +59,6 @@ const SECTIONS = {
 } as const;
 type SectionKey = (typeof SECTIONS)[keyof typeof SECTIONS];
 
-const REFERENCE = z.url();
 const OPTION = /^\[([ xX])\]\s+(.+)$/;
 const BULLET = /^[-*+]\s+/;
 
@@ -98,10 +97,6 @@ export function parseQuestionMarkdown(
 
   const references = parseList(section('references'), 'References');
   if (!references.ok) return references;
-  const badReference = references.value.find((r) => !REFERENCE.safeParse(r).success);
-  if (badReference) {
-    return err(validationError(`References must be URLs; found "${badReference}"`));
-  }
 
   const mcqOptions = sections.value.has('options') ? parseOptionList(section('options')) : undefined;
   if (mcqOptions && !mcqOptions.ok) return mcqOptions;

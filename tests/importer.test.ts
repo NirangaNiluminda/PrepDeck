@@ -124,12 +124,6 @@ describe('parseQuestionMarkdown', () => {
     ).toMatch(/Key points must be a bullet list/);
   });
 
-  it('rejects a reference that is not a URL', () => {
-    expect(
-      errorOf(withBody('## Question\nWhat is DNS?\n\n## Answer\nNames to IPs.\n\n## References\n- see the RFC')),
-    ).toMatch(/References must be URLs/);
-  });
-
   it('rejects a file without front-matter and invalid YAML', () => {
     expect(errorOf('## Question\nWhat is DNS?')).toMatch(/must start with front-matter/);
     expect(errorOf('---\ntags: [unclosed\n---\n## Question\nx')).toMatch(/not valid YAML/);

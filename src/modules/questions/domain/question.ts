@@ -88,6 +88,10 @@ const optionalText = (value?: string): string | undefined => value?.trim() || un
 const isQuestionType = (v: unknown): v is QuestionType =>
   typeof v === 'string' && (QUESTION_TYPES as readonly string[]).includes(v);
 
+// References are rendered as links. Restricting them to http(s) keeps a
+// javascript: URL from ever reaching an href, whichever entry point wrote it.
+const isWebUrl = (value: string): boolean => /^https?:\/\//i.test(value) && URL.canParse(value);
+
 export class Question {
   private constructor(private readonly props: QuestionProps) {}
 
@@ -164,6 +168,10 @@ export class Question {
     if (!optionCheck.ok) return optionCheck;
 
     const references = content.answer.references?.map((r) => r.trim()).filter(Boolean);
+    const badReference = references?.find((r) => !isWebUrl(r));
+    if (badReference) {
+      return err(validationError(`References must be http or https links; found "${badReference}"`));
+    }
 
     return ok({
       slug,
