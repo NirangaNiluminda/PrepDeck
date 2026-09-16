@@ -20,7 +20,16 @@ const connect = (): Promise<MongoClient> => {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error('MONGODB_URI is not set');
 
-  return (global.__mongoClientPromise ??= new MongoClient(uri, options).connect());
+  global.__mongoClientPromise ??= new MongoClient(uri, options)
+    .connect()
+    .catch((error: unknown) => {
+      // A cached rejection would fail every later request until restart; drop
+      // it so one transient DNS or network blip doesn't take the app down.
+      global.__mongoClientPromise = undefined;
+      throw error;
+    });
+
+  return global.__mongoClientPromise;
 };
 
 export const getDb = async (): Promise<Db> =>
