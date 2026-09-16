@@ -19,12 +19,35 @@ that must hold for any change are in [`CLAUDE.md`](CLAUDE.md).
 
 ```bash
 npm install
-cp .env.example .env.local   # then fill in MONGODB_URI
-npm run ensure-indexes       # creates the questions indexes
+cp .env.example .env.local                 # then fill in MONGODB_URI
+npm run ensure-indexes                     # creates the indexes
+npm run import-questions -- --publish      # loads content/questions
 npm run dev
 ```
 
-The API lives at `GET /api/questions` and `GET /api/questions/[id]`.
+Then open http://localhost:3000.
+
+| Page | What it does |
+|---|---|
+| `/` | Browse and search. Filters live in the URL, so any view can be shared. `/` focuses search, `j` / `k` move through results, `Enter` opens one. |
+| `/questions/[id]` | One question. `Space` reveals the answer, `Esc` goes back to the results. |
+| `/?bookmarked=1` | Your starred questions. |
+| `/admin/questions/new` | Write a question (admins). Edit, publish, archive and restore from the question page. |
+
+The JSON API lives at `GET /api/questions` and `GET /api/questions/[id]`.
+
+## Adding questions
+
+Questions live in [`content/questions/`](content/questions/), one markdown file
+each. The format and workflow are in that folder's README. In short:
+
+```bash
+npm run import-questions -- --dry-run      # see what would change
+npm run import-questions -- --publish      # write it
+```
+
+Re-importing is safe: files are matched to questions by slug (the file name), so
+an edited file updates its question and an unchanged file is skipped.
 
 Auth is a Stage 0 stand-in: `DEV_USER_ID` / `DEV_USER_ROLE` in `.env.local` are
 read by `DevAuthProvider` behind the `AuthProvider` port. Unset `DEV_USER_ID` to
@@ -34,10 +57,11 @@ exercise the signed-out path. Real accounts arrive in Stage 4.
 
 | Command | Does |
 |---|---|
-| `npm test` | Use-case suite against the in-memory adapter — **no database needed** |
-| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Use-case, importer and corpus tests — **no database needed** |
+| `npm run typecheck` | `tsc --noEmit` (run `npx next typegen` first after adding a route) |
 | `npm run lint` | ESLint, including the module-boundary rule |
-| `npm run ensure-indexes` | Idempotent index creation from `QUESTION_INDEXES` |
+| `npm run ensure-indexes` | Idempotent index creation for every collection |
+| `npm run import-questions` | Import `content/questions`; `--dry-run`, `--publish`, `--author` |
 
 ## API testing with Postman
 
@@ -69,9 +93,12 @@ src/
       use-cases/   plain async functions
       adapters/    in-memory/ and mongo/
       index.ts     the module's public API
-    auth/
+    bookmarks/     per-user stars
+    importer/      markdown files → questions
+    auth/          dev sign-in behind an AuthProvider port
   composition/     the only place adapters are wired
-  app/             Next.js routes — thin
+  app/             Next.js pages, server actions and API routes — thin
+content/questions/ the question corpus
 ```
 
 Modules talk to each other through `index.ts` only. That boundary is enforced by

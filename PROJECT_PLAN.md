@@ -107,15 +107,18 @@ Each stage is independently shippable and independently useful.
 
 ### Stage 0 — Foundation (½ day)
 
-- [ ] `create-next-app` with TypeScript strict, Tailwind, App Router
-- [ ] `tsconfig` path alias `@/* → ./src/*`
-- [ ] Copy the `questions` module scaffold in
-- [ ] Vitest configured with the same path alias; `tests/questions.test.ts` green
-- [ ] ESLint `no-restricted-imports` blocking `@/modules/*/domain/*` and
+- [x] `create-next-app` with TypeScript strict, Tailwind, App Router
+- [x] `tsconfig` path alias `@/* → ./src/*`
+- [x] Copy the `questions` module scaffold in
+- [x] Vitest configured with the same path alias; `tests/questions.test.ts` green
+- [x] ESLint `no-restricted-imports` blocking `@/modules/*/domain/*` and
       `@/modules/*/adapters/*` from outside the owning module
-- [ ] `composition/mongo-client.ts` wired, Atlas free tier connected
-- [ ] Index creation script (`scripts/ensure-indexes.ts`) from `QUESTION_INDEXES`
+- [x] `composition/mongo-client.ts` wired, Atlas free tier connected
+- [x] Index creation script (`scripts/ensure-indexes.ts`) from `QUESTION_INDEXES`
 - [ ] Minimal auth: NextAuth with GitHub provider behind an `AuthProvider` port
+      — *partly done: the `AuthProvider` port exists, backed by a dev adapter
+      that reads `DEV_USER_ID` / `DEV_USER_ROLE`. NextAuth + GitHub is still to
+      do; it matters from Stage 4, when there is more than one user.*
 
 **Done when:** `npm test` passes with no database running, and `npm run dev`
 serves `GET /api/questions` returning an empty page.
@@ -124,21 +127,24 @@ serves `GET /api/questions` returning an empty page.
 
 The only stage that matters for the founder's immediate problem.
 
-- [ ] **Bulk importer** — markdown or JSON in, questions out. *Do not skip this.*
+- [x] **Bulk importer** — markdown or JSON in, questions out. *Do not skip this.*
       It is how the existing transcript corpus gets in, and it is the highest
       leverage feature in the whole project.
       - Format: front-matter (topic, difficulty, type, tags) + `## Question` /
         `## Answer` / `## Key points` sections
       - Idempotent: re-running updates by stable slug, does not duplicate
       - Dry-run mode printing a diff before writing
-- [ ] Topic taxonomy seeded from the corpus (`devops/*`, `system-design/*`,
+      — *markdown only; JSON input not built. `npm run import-questions`.*
+- [x] Topic taxonomy seeded from the corpus (`devops/*`, `system-design/*`,
       `databases/*`, `security/*`, `dsa/*`, `web/*`, `behavioural/*`)
-- [ ] Browse page: filter sidebar (topic tree, difficulty, type, tags), result
+      — *seeded with 28 starter questions (`source: starter-seed`), not yet
+      the real transcript corpus.*
+- [x] Browse page: filter sidebar (topic tree, difficulty, type, tags), result
       list, free-text search, URL-synced filter state so views are shareable
-- [ ] Question detail: stem, reveal-answer toggle, key points, references
-- [ ] Bookmark / star (per user, even with one user)
-- [ ] Admin CRUD for questions
-- [ ] Keyboard navigation: `/` focuses search, `j`/`k` move through results
+- [x] Question detail: stem, reveal-answer toggle, key points, references
+- [x] Bookmark / star (per user, even with one user)
+- [x] Admin CRUD for questions (delete is archive, per the soft-delete rule)
+- [x] Keyboard navigation: `/` focuses search, `j`/`k` move through results
 
 **Done when:** the founder can find any question from the corpus in under five
 seconds and has stopped opening the transcripts. Use it for a week before

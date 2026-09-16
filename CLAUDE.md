@@ -21,11 +21,13 @@ blocks it either.
 
 ## Stack
 
-- Next.js 15 (App Router), TypeScript strict, React Server Components
+- Next.js 16 (App Router), TypeScript strict, React Server Components
 - MongoDB Atlas via the **native `mongodb` driver** — not Mongoose
 - Zod for boundary validation
 - Vitest for tests
-- Tailwind + shadcn/ui
+- Tailwind v4 with `@tailwindcss/typography`; `react-markdown` for question
+  content. shadcn/ui is planned but not adopted: Stage 1 uses native form
+  controls, which a GET filter form and server actions need anyway.
 - Hosted on Vercel
 
 **The database must remain swappable to PostgreSQL.** This is a hard product
@@ -43,10 +45,20 @@ src/
       use-cases/   plain async functions
       adapters/    in-memory/ and mongo/
       index.ts     the module's public API
-    practice/  exams/  community/  users/
+    bookmarks/     per-user stars, same shape
+    importer/      markdown question files → import items (structure only)
+    auth/          getSession() behind an AuthProvider port
+    practice/  exams/  community/  users/     ← not built yet
   composition/     container.ts — the only place adapters are wired
   app/             Next.js routes — thin
+    _components/   UI pieces; _lib/ presentation helpers; actions/ server actions
+content/questions/ the question corpus, one markdown file per question
 ```
+
+**Client components never import `@/modules/*`.** A module's `index.ts` also
+exports its Mongo adapter, so importing it from client code would pull the
+database driver into the browser bundle. Pass data down as props; display
+labels live in `app/_lib/labels.ts`, which imports nothing.
 
 Dependency rule: `domain` imports nothing. `use-cases` import `domain` + `ports`
 only. `adapters` and `app` import inward, never outward.
@@ -108,7 +120,7 @@ passes ~40 lines, extract a domain service.
 
 ## Definition of done for any change
 
-- [ ] `npx tsc --noEmit` clean
+- [ ] `npx tsc --noEmit` clean (run `npx next typegen` first after adding a route)
 - [ ] Use-case tests pass against the in-memory adapter
 - [ ] No new import crosses the dependency rule
 - [ ] Any new `QuestionFilter`-style field handled in **both** adapters
@@ -117,11 +129,26 @@ passes ~40 lines, extract a domain service.
 
 ## Current state
 
-Stage 1 scaffold exists: the `questions` module is complete end-to-end (domain,
-port, both adapters, four use cases, route handlers, test suite). Use it as the
-template for every other module. `getSession()` from `@/modules/auth` is
-referenced but not implemented — it returns
-`{ userId: string; role: 'user' | 'admin' } | null`.
+**Stage 1 is built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
+
+- `questions`: slugs, create / update / publish / archive / restore, search
+  with an `ids` filter, facets (topic tree + tag counts), and `importQuestions`,
+  which upserts by slug with a dry run and field-level diffs.
+- `importer`: parses `content/questions/**/*.md`; run it with
+  `npm run import-questions -- [--dry-run] [--publish]`. `tests/content.test.ts`
+  fails if any corpus file doesn't parse or import cleanly.
+- `bookmarks`: per-user stars.
+- `auth`: `getSession()` is a **dev stand-in** reading `DEV_USER_ID` /
+  `DEV_USER_ROLE`. NextAuth + GitHub is still to do, before Stage 4.
+- UI: browse (`/`), question detail, admin create/edit, all keyboard-driven.
+- Atlas `interview_prep` holds the 28 `starter-seed` questions, published.
+
+The plan says to use Stage 1 for a week before starting Stage 2. The starter
+questions should be rewritten or replaced with the real transcript corpus.
+
+Pages call `getViewer()` (from `app/_lib/viewer.ts`), which calls
+`connection()`: the dev auth adapter reads env vars rather than cookies, so
+without it Next.js may prerender a page and serve a stale copy.
 
 See `PROJECT_PLAN.md` for the staged roadmap and `ARCHITECTURE.md` for the
 layering rationale.
