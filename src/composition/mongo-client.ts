@@ -32,5 +32,12 @@ const connect = (): Promise<MongoClient> => {
   return global.__mongoClientPromise;
 };
 
+/** For scripts: an open client keeps Node's event loop alive after the work is done. */
+export const closeDb = async (): Promise<void> => {
+  const pending = global.__mongoClientPromise;
+  global.__mongoClientPromise = undefined;
+  await pending?.then((client) => client.close(), () => undefined);
+};
+
 export const getDb = async (): Promise<Db> =>
   (await connect()).db(process.env.MONGODB_DB ?? 'interview_prep');

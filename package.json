@@ -10,13 +10,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "ensure-indexes": "tsx --env-file-if-exists=.env.local scripts/ensure-indexes.ts"
+    "ensure-indexes": "tsx --env-file-if-exists=.env.local scripts/ensure-indexes.ts",
+    "import-questions": "tsx --env-file-if-exists=.env.local scripts/import-questions.ts"
   },
   "dependencies": {
     "mongodb": "^7.6.0",
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "yaml": "^2.9.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
