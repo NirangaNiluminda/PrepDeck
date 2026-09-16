@@ -1,0 +1,1637 @@
+{
+  "info": {
+    "_postman_id": "7e8c562a-a5ab-4cb2-a70b-bf694f719142",
+    "name": "PrepDeck API",
+    "description": "Requests and tests for the PrepDeck questions API.\n\n**Setup**\n1. Run `npm run dev` in the PrepDeck repo.\n2. Import this collection and `PrepDeck.local.postman_environment.json`, then select the **PrepDeck (local)** environment. Without it, the collection falls back to its own `baseUrl` of `http://localhost:3000`.\n3. Run folder 1, then folder 2. Folder 3 needs `.env.local` changes; see its description.\n\n**Auth.** There are no auth headers. The server reads identity from `DEV_USER_ID` and `DEV_USER_ROLE` in `.env.local` (default: `founder` / `admin`).\n\n**Errors** always come back as `{ \"error\": { \"code\", \"message\", \"details\"? } }`: `VALIDATION` 400, `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `CONFLICT` 409. A collection-level test checks this on every 4xx/5xx response.\n\n**Test data.** Folder 1 writes real questions tagged `postman`. Remove them in Atlas with `{ \"source\": \"postman\" }`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code >= 400) {",
+          "  pm.test('error body uses the { error: { code, message } } envelope', () => {",
+          "    const body = pm.response.json();",
+          "    pm.expect(body.error).to.be.an('object');",
+          "    pm.expect(body.error).to.include.keys('code', 'message');",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "questionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "questionStem",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dupStem",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "draftQuestionId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Question lifecycle",
+      "description": "Run top to bottom. Later requests use ids saved by earlier ones.\n\nThis writes **real questions** to the database set in `.env.local`: three per run, under topic `sandbox/postman`, tagged and sourced `postman`. There is no delete endpoint yet. Remove them in Atlas Data Explorer with the filter `{ \"source\": \"postman\" }`.",
+      "item": [
+        {
+          "name": "Create question (short answer)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A fresh id per run keeps stems unique, because the API rejects repeated wording with 409.",
+                  "pm.collectionVariables.set('runId', Date.now().toString(36));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201 Created', () => pm.response.to.have.status(201));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('new questions start as drafts', () => pm.expect(body.status).to.eql('draft'));",
+                  "pm.test('topic path is lowercased', () => pm.expect(body.topicPath).to.eql('sandbox/postman'));",
+                  "pm.test('tags are lowercased, deduplicated and sorted', () => pm.expect(body.tags).to.eql(['ansible', 'postman', 'terraform']));",
+                  "pm.test('the author gets the answer back', () => pm.expect(body.answer && body.answer.keyPoints).to.have.length(3));",
+                  "if (body.id) {",
+                  "  pm.collectionVariables.set('questionId', body.id);",
+                  "  pm.collectionVariables.set('questionStem', body.stem);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"What is the difference between Terraform and Ansible, and when would you use each? [postman {{runId}}]\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"Sandbox/Postman\",\n  \"tags\": [\n    \"Terraform\",\n    \"ansible\",\n    \"terraform\",\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"Terraform provisions infrastructure (what exists); Ansible configures it (what runs on it). Terraform is declarative and tracks state; Ansible is procedural automation.\",\n    \"keyPoints\": [\n      \"provisioning vs configuration management\",\n      \"Terraform state tracks desired vs actual\",\n      \"both should be idempotent\"\n    ],\n    \"explanation\": \"Typical flow: Terraform creates the EC2 instance, then Ansible installs Docker on it.\",\n    \"references\": [\n      \"https://developer.hashicorp.com/terraform/intro\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            },
+            "description": "Creates a draft. `authorId` comes from the session, never the body. The topic path and tags are sent un-normalised on purpose, so the response shows how the domain cleans them up."
+          },
+          "response": []
+        },
+        {
+          "name": "Create the same question again → 409",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('dupStem', (pm.collectionVariables.get('questionStem') || '').toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 409 CONFLICT', () => pm.response.to.have.status(409));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is CONFLICT', () => pm.expect(body.error && body.error.code).to.eql('CONFLICT'));",
+                  "pm.test('message mentions \"already exists\"', () => pm.expect(body.error && body.error.message).to.include('already exists'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"{{dupStem}}\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"Sandbox/Postman\",\n  \"tags\": [\n    \"Terraform\",\n    \"ansible\",\n    \"terraform\",\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"Terraform provisions infrastructure (what exists); Ansible configures it (what runs on it). Terraform is declarative and tracks state; Ansible is procedural automation.\",\n    \"keyPoints\": [\n      \"provisioning vs configuration management\",\n      \"Terraform state tracks desired vs actual\",\n      \"both should be idempotent\"\n    ],\n    \"explanation\": \"Typical flow: Terraform creates the EC2 instance, then Ansible installs Docker on it.\",\n    \"references\": [\n      \"https://developer.hashicorp.com/terraform/intro\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            },
+            "description": "Duplicate detection compares stems case-insensitively, so an upper-cased copy must still be rejected."
+          },
+          "response": []
+        },
+        {
+          "name": "Get question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('returns the question that was created', () => pm.expect(body.id).to.eql(pm.collectionVariables.get('questionId')));",
+                  "pm.test('includes the answer by default', () => pm.expect(body.answer).to.be.an('object'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{questionId}}",
+                  "description": "Set by \"Create question (short answer)\"."
+                }
+              ]
+            },
+            "description": "Includes the answer unless `reveal=false`. Drafts are visible only to admins and to their author."
+          },
+          "response": []
+        },
+        {
+          "name": "Get question without the answer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('answer is withheld', () => pm.expect(body).to.not.have.property('answer'));",
+                  "pm.test('the question itself is still returned', () => pm.expect(body.stem).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/:id?reveal=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions",
+                ":id"
+              ],
+              "query": [
+                {
+                  "key": "reveal",
+                  "value": "false",
+                  "description": "Withholds the answer; the exam runner will use this. Any other value, or leaving it out, includes the answer."
+                }
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{questionId}}",
+                  "description": "Set by \"Create question (short answer)\"."
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Publish question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('status is now published', () => pm.expect(body.status).to.eql('published'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{questionId}}",
+                  "description": "Set by \"Create question (short answer)\"."
+                }
+              ]
+            },
+            "description": "A POST with no body to the question URL publishes it. Admin only."
+          },
+          "response": []
+        },
+        {
+          "name": "Publish again → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('message mentions \"already published\"', () => pm.expect(body.error && body.error.message).to.include('already published'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{questionId}}",
+                  "description": "Set by \"Create question (short answer)\"."
+                }
+              ]
+            },
+            "description": "The publish transition lives on the entity, so it refuses to publish twice."
+          },
+          "response": []
+        },
+        {
+          "name": "Create question (multiple choice)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201 Created', () => pm.response.to.have.status(201));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('keeps all three options', () => pm.expect(body.options).to.have.length(3));",
+                  "pm.test('options never reveal which one is correct', () => {",
+                  "  (body.options || []).forEach((option) => pm.expect(option).to.have.all.keys('id', 'text'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Which HTTP status should an API return when the caller is not signed in? [postman {{runId}}]\",\n  \"type\": \"mcq\",\n  \"difficulty\": \"easy\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"http\",\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"401 Unauthorized. 403 Forbidden means the caller is known but not allowed.\",\n    \"keyPoints\": [\n      \"401 = not authenticated\",\n      \"403 = authenticated but not permitted\"\n    ]\n  },\n  \"options\": [\n    {\n      \"id\": \"a\",\n      \"text\": \"401 Unauthorized\",\n      \"correct\": true\n    },\n    {\n      \"id\": \"b\",\n      \"text\": \"403 Forbidden\",\n      \"correct\": false\n    },\n    {\n      \"id\": \"c\",\n      \"text\": \"404 Not Found\",\n      \"correct\": false\n    }\n  ],\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            },
+            "description": "An MCQ needs at least two options and exactly one marked correct."
+          },
+          "response": []
+        },
+        {
+          "name": "Create draft (left unpublished)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201 Created', () => pm.response.to.have.status(201));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('is a draft', () => pm.expect(body.status).to.eql('draft'));",
+                  "if (body.id) pm.collectionVariables.set('draftQuestionId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"What do the three letters in the CAP theorem stand for? [postman {{runId}}]\",\n  \"type\": \"flashcard\",\n  \"difficulty\": \"easy\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"cap\",\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"Consistency, Availability, Partition tolerance.\",\n    \"keyPoints\": [\n      \"consistency\",\n      \"availability\",\n      \"partition tolerance\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            },
+            "description": "Left as a draft on purpose. Folder 3 uses it to check who can read drafts."
+          },
+          "response": []
+        },
+        {
+          "name": "Search questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('returns a page', () => pm.expect(body).to.include.all.keys('items', 'total', 'limit', 'offset'));",
+                  "pm.test('defaults to 20 per page from offset 0', () => {",
+                  "  pm.expect(body.limit).to.eql(20);",
+                  "  pm.expect(body.offset).to.eql(0);",
+                  "});",
+                  "pm.test('list items never include answers', () => {",
+                  "  (body.items || []).forEach((item) => pm.expect(item).to.not.have.property('answer'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "topic",
+                  "value": "sandbox/postman",
+                  "description": "Topic slug path. Matches the topic and everything under it.",
+                  "disabled": true
+                },
+                {
+                  "key": "difficulty",
+                  "value": "easy,medium",
+                  "description": "Comma-separated: easy, medium, hard.",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "mcq,short-answer",
+                  "description": "Comma-separated: mcq, short-answer, flashcard, code.",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "draft",
+                  "description": "Comma-separated: draft, in-review, published, archived. Admins only; ignored for everyone else.",
+                  "disabled": true
+                },
+                {
+                  "key": "tags",
+                  "value": "postman",
+                  "description": "Comma-separated. A question must carry every tag listed.",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "terraform",
+                  "description": "Case-insensitive text search over the stem. Max 200 characters.",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "newest",
+                  "description": "newest (default), oldest, easiest, hardest. easiest/hardest currently sort alphabetically, a known issue in the Mongo adapter.",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "1 to 100. Default 20.",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "0 or more. Default 0.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Every supported query parameter is listed here, disabled. Tick the ones you want. Admins see all statuses; everyone else sees published questions only, whatever `status` says."
+          },
+          "response": []
+        },
+        {
+          "name": "Search questions (filtered)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "const items = body.items || [];",
+                  "pm.test('finds the questions created above', () => pm.expect(items.length).to.be.at.least(1));",
+                  "pm.test('every result is under sandbox/postman', () => {",
+                  "  items.forEach((q) => pm.expect(q.topicPath.indexOf('sandbox/postman')).to.eql(0));",
+                  "});",
+                  "pm.test('every result matches the difficulty and type filters', () => {",
+                  "  items.forEach((q) => {",
+                  "    pm.expect(['easy', 'medium']).to.include(q.difficulty);",
+                  "    pm.expect(['short-answer', 'mcq']).to.include(q.type);",
+                  "  });",
+                  "});",
+                  "pm.test('every result carries the postman tag', () => {",
+                  "  items.forEach((q) => pm.expect(q.tags).to.include('postman'));",
+                  "});",
+                  "pm.test('page size is honoured', () => pm.expect(body.limit).to.eql(10));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions?topic=sandbox/postman&difficulty=easy,medium&type=short-answer,mcq&tags=postman&sort=newest&limit=10&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "topic",
+                  "value": "sandbox/postman"
+                },
+                {
+                  "key": "difficulty",
+                  "value": "easy,medium"
+                },
+                {
+                  "key": "type",
+                  "value": "short-answer,mcq"
+                },
+                {
+                  "key": "tags",
+                  "value": "postman"
+                },
+                {
+                  "key": "sort",
+                  "value": "newest"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search questions (free text)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "const items = body.items || [];",
+                  "const runId = pm.collectionVariables.get('runId');",
+                  "pm.test('finds this run\\'s questions', () => pm.expect(items.length).to.be.at.least(1));",
+                  "pm.test('every stem contains the search text', () => {",
+                  "  items.forEach((q) => pm.expect(q.stem.toLowerCase()).to.include(runId));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions?q={{runId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{runId}}",
+                  "description": "The run id is embedded in every stem created by this run."
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search questions (drafts only, admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "const items = body.items || [];",
+                  "pm.test('finds at least the draft created above', () => pm.expect(items.length).to.be.at.least(1));",
+                  "pm.test('every result is a draft', () => {",
+                  "  items.forEach((q) => pm.expect(q.status).to.eql('draft'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions?status=draft",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "draft"
+                }
+              ]
+            },
+            "description": "Only admins can filter by status. Folder 3 shows what a signed-out user gets instead."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Validation errors",
+      "description": "Requests the API must reject. Each one stands alone and none should write anything, so this folder is safe to run at any time.",
+      "item": [
+        {
+          "name": "Create: stem too short → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('details name the stem field', () => pm.expect(body.error && body.error.details).to.have.property('stem'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Too short\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: unknown difficulty → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('details name the difficulty field', () => pm.expect(body.error && body.error.details).to.have.property('difficulty'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Explain the difference between a process and a thread. [postman validation]\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"extreme\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: more than 10 tags → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('details name the tags field', () => pm.expect(body.error && body.error.details).to.have.property('tags'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Explain the difference between a process and a thread. [postman validation]\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"tag-1\",\n    \"tag-2\",\n    \"tag-3\",\n    \"tag-4\",\n    \"tag-5\",\n    \"tag-6\",\n    \"tag-7\",\n    \"tag-8\",\n    \"tag-9\",\n    \"tag-10\",\n    \"tag-11\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: reference is not a URL → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('details name the answer field', () => pm.expect(body.error && body.error.details).to.have.property('answer'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Explain the difference between a process and a thread. [postman validation]\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ],\n    \"references\": [\n      \"not a url\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: MCQ with two correct options → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('message mentions \"Exactly one option must be marked correct\"', () => pm.expect(body.error && body.error.message).to.include('Exactly one option must be marked correct'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Explain the difference between a process and a thread. [postman validation]\",\n  \"type\": \"mcq\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ]\n  },\n  \"source\": \"postman\",\n  \"options\": [\n    {\n      \"id\": \"a\",\n      \"text\": \"A process\",\n      \"correct\": true\n    },\n    {\n      \"id\": \"b\",\n      \"text\": \"A thread\",\n      \"correct\": true\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: MCQ with a single option → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('message mentions \"at least 2 options\"', () => pm.expect(body.error && body.error.message).to.include('at least 2 options'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Explain the difference between a process and a thread. [postman validation]\",\n  \"type\": \"mcq\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ]\n  },\n  \"source\": \"postman\",\n  \"options\": [\n    {\n      \"id\": \"a\",\n      \"text\": \"A process\",\n      \"correct\": true\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: options on a short-answer question → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('message mentions \"Only multiple-choice questions may carry options\"', () => pm.expect(body.error && body.error.message).to.include('Only multiple-choice questions may carry options'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Explain the difference between a process and a thread. [postman validation]\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"sandbox/postman\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ]\n  },\n  \"source\": \"postman\",\n  \"options\": [\n    {\n      \"id\": \"a\",\n      \"text\": \"A process\",\n      \"correct\": true\n    },\n    {\n      \"id\": \"b\",\n      \"text\": \"A thread\",\n      \"correct\": false\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: topic deeper than 4 levels → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('message mentions \"may not exceed 4 levels\"', () => pm.expect(body.error && body.error.message).to.include('may not exceed 4 levels'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Explain the difference between a process and a thread. [postman validation]\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"devops/docker/networking/bridge/mtu\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: topic segment is not a slug → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('message mentions \"lowercase slugs\"', () => pm.expect(body.error && body.error.message).to.include('lowercase slugs'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stem\": \"Explain the difference between a process and a thread. [postman validation]\",\n  \"type\": \"short-answer\",\n  \"difficulty\": \"medium\",\n  \"topicPath\": \"devops/ci cd\",\n  \"tags\": [\n    \"postman\"\n  ],\n  \"answer\": {\n    \"modelAnswer\": \"A process has its own address space; threads share the memory of their process.\",\n    \"keyPoints\": [\n      \"address space\",\n      \"shared memory\"\n    ]\n  },\n  \"source\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create: malformed JSON → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"stem\": \"unterminated",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ]
+            },
+            "description": "**Known bug:** this currently returns 500 with an empty body, because `route.ts` calls `request.json()` without handling a parse failure. This request will fail until that is fixed."
+          },
+          "response": []
+        },
+        {
+          "name": "Get: unknown id → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404 NOT_FOUND', () => pm.response.to.have.status(404));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is NOT_FOUND', () => pm.expect(body.error && body.error.code).to.eql('NOT_FOUND'));",
+                  "pm.test('message mentions \"was not found\"', () => pm.expect(body.error && body.error.message).to.include('was not found'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "description": "A well-formed UUID that does not exist."
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Publish: unknown id → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 404 NOT_FOUND', () => pm.response.to.have.status(404));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is NOT_FOUND', () => pm.expect(body.error && body.error.code).to.eql('NOT_FOUND'));",
+                  "pm.test('message mentions \"was not found\"', () => pm.expect(body.error && body.error.message).to.include('was not found'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "description": "A well-formed UUID that does not exist."
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search: limit above 100 → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('details name the limit field', () => pm.expect(body.error && body.error.details).to.have.property('limit'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions?limit=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "500"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search: unknown sort → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400 VALIDATION', () => pm.response.to.have.status(400));",
+                  "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                  "pm.test('error code is VALIDATION', () => pm.expect(body.error && body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('details name the sort field', () => pm.expect(body.error && body.error.details).to.have.property('sort'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions?sort=random",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "random"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Auth scenarios (edit .env.local first)",
+      "description": "Postman cannot switch users here: the server reads identity from `DEV_USER_ID` and `DEV_USER_ROLE` in `.env.local`, not from request headers.\n\nFor each subfolder, edit `.env.local` as its description says, restart `npm run dev`, then run it. Set them back to `DEV_USER_ID=founder` and `DEV_USER_ROLE=admin` when you are done.\n\nRun folder 1 first so `{{draftQuestionId}}` is set. If you forget to change `.env.local`, these requests fail without changing any data.",
+      "item": [
+        {
+          "name": "Signed out",
+          "description": "In `.env.local`, comment out `DEV_USER_ID`, then restart `npm run dev`.",
+          "item": [
+            {
+              "name": "Create → 401",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status 401 UNAUTHENTICATED', () => pm.response.to.have.status(401));",
+                      "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                      "pm.test('error code is UNAUTHENTICATED', () => pm.expect(body.error && body.error.code).to.eql('UNAUTHENTICATED'));",
+                      "pm.test('message mentions \"Sign in\"', () => pm.expect(body.error && body.error.message).to.include('Sign in'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/questions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "questions"
+                  ]
+                },
+                "description": "The body is empty on purpose: if a session is still active you get 400 instead of creating a question."
+              },
+              "response": []
+            },
+            {
+              "name": "Publish → 401",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status 401 UNAUTHENTICATED', () => pm.response.to.have.status(401));",
+                      "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                      "pm.test('error code is UNAUTHENTICATED', () => pm.expect(body.error && body.error.code).to.eql('UNAUTHENTICATED'));",
+                      "pm.test('message mentions \"Sign in\"', () => pm.expect(body.error && body.error.message).to.include('Sign in'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/questions/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "questions",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "00000000-0000-4000-8000-000000000000",
+                      "description": "An id that does not exist, so a still-active admin session gets 404 instead of publishing something."
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get a draft → 403",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status 403 FORBIDDEN', () => pm.response.to.have.status(403));",
+                      "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                      "pm.test('error code is FORBIDDEN', () => pm.expect(body.error && body.error.code).to.eql('FORBIDDEN'));",
+                      "pm.test('message mentions \"not published\"', () => pm.expect(body.error && body.error.message).to.include('not published'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/questions/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "questions",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{draftQuestionId}}",
+                      "description": "Set by \"Create draft (left unpublished)\" in folder 1."
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Search asking for drafts → published only",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                      "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                      "pm.test('every result is published', () => {",
+                      "  (body.items || []).forEach((q) => pm.expect(q.status).to.eql('published'));",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/questions?status=draft",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "questions"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "draft"
+                    }
+                  ]
+                },
+                "description": "The `status` filter is ignored for anyone who is not an admin."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Learner",
+          "description": "In `.env.local` set `DEV_USER_ID=learner-1` and `DEV_USER_ROLE=user`, then restart `npm run dev`.",
+          "item": [
+            {
+              "name": "Publish → 403",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status 403 FORBIDDEN', () => pm.response.to.have.status(403));",
+                      "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                      "pm.test('error code is FORBIDDEN', () => pm.expect(body.error && body.error.code).to.eql('FORBIDDEN'));",
+                      "pm.test('message mentions \"Only moderators may publish\"', () => pm.expect(body.error && body.error.message).to.include('Only moderators may publish'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/questions/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "questions",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "00000000-0000-4000-8000-000000000000",
+                      "description": "An id that does not exist, so a still-active admin session gets 404 instead of publishing something."
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get someone else's draft → 403",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status 403 FORBIDDEN', () => pm.response.to.have.status(403));",
+                      "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                      "pm.test('error code is FORBIDDEN', () => pm.expect(body.error && body.error.code).to.eql('FORBIDDEN'));",
+                      "pm.test('message mentions \"not published\"', () => pm.expect(body.error && body.error.message).to.include('not published'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/questions/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "questions",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{draftQuestionId}}",
+                      "description": "Set by \"Create draft (left unpublished)\" in folder 1."
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Author without admin role",
+          "description": "In `.env.local` set `DEV_USER_ID=founder` and `DEV_USER_ROLE=user`, then restart `npm run dev`.",
+          "item": [
+            {
+              "name": "Get own draft → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status 200 OK', () => pm.response.to.have.status(200));",
+                      "const body = (() => { try { return pm.response.json(); } catch (e) { return {}; } })();",
+                      "pm.test('returns the draft', () => pm.expect(body.status).to.eql('draft'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/questions/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "questions",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "{{draftQuestionId}}",
+                      "description": "Set by \"Create draft (left unpublished)\" in folder 1."
+                    }
+                  ]
+                },
+                "description": "Authors can always read their own drafts, even without the admin role."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

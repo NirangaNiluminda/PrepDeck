@@ -39,6 +39,24 @@ exercise the signed-out path. Real accounts arrive in Stage 4.
 | `npm run lint` | ESLint, including the module-boundary rule |
 | `npm run ensure-indexes` | Idempotent index creation from `QUESTION_INDEXES` |
 
+## API testing with Postman
+
+Import both files in [`postman/`](postman/) and select the **PrepDeck (local)**
+environment. Run folder 1 (question lifecycle), then folder 2 (validation
+errors). Folder 3 covers signed-out and non-admin behaviour and needs
+`.env.local` changes described in its folder notes.
+
+Folder 1 writes real questions tagged `postman`. Remove them in Atlas with the
+filter `{ "source": "postman" }`.
+
+The same collection runs from the command line:
+
+```bash
+npx newman run postman/PrepDeck.postman_collection.json \
+  -e postman/PrepDeck.local.postman_environment.json \
+  --folder "2. Validation errors"
+```
+
 ## Layout
 
 ```
