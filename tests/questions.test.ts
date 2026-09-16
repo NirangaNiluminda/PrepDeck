@@ -6,6 +6,12 @@ import {
   createQuestion,
   getQuestion,
   publishQuestion,
+  updateQuestion,
+  archiveQuestion,
+  restoreQuestion,
+  listQuestionFacets,
+  importQuestions,
+  type ImportQuestionItem,
 } from '@/modules/questions';
 
 /**
@@ -25,7 +31,7 @@ const deps = () => ({
   ids: sequentialIds('q'),
 });
 
-const validInput = (over: Partial<Parameters<typeof createQuestion>[0]> = {}) => ({
+const validContent = () => ({
   stem: 'What is the difference between Terraform and Ansible?',
   type: 'short-answer' as const,
   difficulty: 'medium' as const,
@@ -35,6 +41,10 @@ const validInput = (over: Partial<Parameters<typeof createQuestion>[0]> = {}) =>
     modelAnswer: 'Terraform provisions infrastructure; Ansible configures it.',
     keyPoints: ['provisioning', 'configuration management', 'idempotent'],
   },
+});
+
+const validInput = (over: Partial<Parameters<typeof createQuestion>[0]> = {}) => ({
+  ...validContent(),
   authorId: 'user-1',
   ...over,
 });
@@ -232,5 +242,312 @@ describe('getQuestion', () => {
     );
 
     expect(!result.ok && result.error.code).toBe('NOT_FOUND');
+  });
+
+  it('names the correct MCQ option only when the answer is revealed', async () => {
+    const d = deps();
+    await createQuestion(
+      validInput({
+        type: 'mcq',
+        options: [
+          { id: 'a', text: 'Layer 4', correct: false },
+          { id: 'b', text: 'Layer 7', correct: true },
+        ],
+      }),
+      d,
+    );
+    const viewer = { id: 'q-1', viewerId: null, viewerIsAdmin: true };
+
+    const shown = await getQuestion({ ...viewer, revealAnswer: true }, d);
+    const hidden = await getQuestion({ ...viewer, revealAnswer: false }, d);
+
+    expect(shown.ok && shown.value.answer?.correctOptionId).toBe('b');
+    expect(hidden.ok && hidden.value.options).toEqual([
+      { id: 'a', text: 'Layer 4' },
+      { id: 'b', text: 'Layer 7' },
+    ]);
+    expect(hidden.ok && hidden.value.answer).toBeUndefined();
+  });
+});
+
+describe('updateQuestion', () => {
+  const edit = (over: Partial<Parameters<typeof updateQuestion>[0]> = {}) => ({
+    ...validContent(),
+    id: 'q-1',
+    editorIsAdmin: true,
+    ...over,
+  });
+
+  it('requires moderator rights', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const result = await updateQuestion(edit({ editorIsAdmin: false }), d);
+
+    expect(!result.ok && result.error.code).toBe('FORBIDDEN');
+  });
+
+  it('enforces the same invariants as creation', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const result = await updateQuestion(
+      edit({ tags: Array.from({ length: 11 }, (_, i) => `tag-${i}`) }),
+      d,
+    );
+
+    expect(!result.ok && result.error.message).toMatch(/at most 10 tags/);
+  });
+
+  it('clears a field the new content leaves out', async () => {
+    const d = deps();
+    await createQuestion(
+      validInput({ answer: { modelAnswer: 'Answer.', keyPoints: [], explanation: 'Why.' } }),
+      d,
+    );
+
+    const result = await updateQuestion(
+      edit({ answer: { modelAnswer: 'Answer.', keyPoints: [] } }),
+      d,
+    );
+
+    expect(result.ok && result.value.answer?.explanation).toBeUndefined();
+  });
+
+  it('keeps its own wording without reporting a conflict', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const result = await updateQuestion(edit({ difficulty: 'hard' }), d);
+
+    expect(result.ok && result.value.difficulty).toBe('hard');
+  });
+
+  it("rejects wording that belongs to another question", async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+    await createQuestion(validInput({ stem: 'Explain what a Kubernetes pod is.' }), d);
+
+    const result = await updateQuestion(edit({ id: 'q-2' }), d);
+
+    expect(!result.ok && result.error.code).toBe('CONFLICT');
+  });
+});
+
+describe('archiveQuestion and restoreQuestion', () => {
+  const moderator = { id: 'q-1', moderatorIsAdmin: true };
+
+  it('hides an archived question from learners until it is restored and republished', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+    await publishQuestion({ id: 'q-1', moderatorId: 'a', moderatorIsAdmin: true }, d);
+
+    await archiveQuestion(moderator, d);
+    expect((await searchQuestions({ viewerIsAdmin: false }, d)).total).toBe(0);
+
+    const restored = await restoreQuestion(moderator, d);
+    expect(restored.ok && restored.value.status).toBe('draft');
+  });
+
+  it('refuses to archive twice or restore a question that is not archived', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const restoreDraft = await restoreQuestion(moderator, d);
+    await archiveQuestion(moderator, d);
+    const archiveAgain = await archiveQuestion(moderator, d);
+
+    expect(!restoreDraft.ok && restoreDraft.error.code).toBe('VALIDATION');
+    expect(!archiveAgain.ok && archiveAgain.error.code).toBe('VALIDATION');
+  });
+
+  it('requires moderator rights', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const result = await archiveQuestion({ id: 'q-1', moderatorIsAdmin: false }, d);
+
+    expect(!result.ok && result.error.code).toBe('FORBIDDEN');
+  });
+});
+
+describe('importQuestions', () => {
+  const item = (over: Partial<ImportQuestionItem> = {}): ImportQuestionItem => ({
+    ...validContent(),
+    slug: 'terraform-vs-ansible',
+    ...over,
+  });
+  const run = (
+    d: ReturnType<typeof deps>,
+    items: ImportQuestionItem[],
+    options: { publish?: boolean; dryRun?: boolean } = {},
+  ) =>
+    importQuestions(
+      { items, authorId: 'founder', publish: options.publish ?? false, dryRun: options.dryRun ?? false },
+      d,
+    );
+
+  it('creates new slugs as drafts unless asked to publish', async () => {
+    const d = deps();
+
+    const drafts = await run(d, [item()]);
+    const published = await run(d, [item({ slug: 'image-vs-container', stem: 'Docker image versus container?' })], {
+      publish: true,
+    });
+
+    expect(drafts.outcomes).toEqual([{ slug: 'terraform-vs-ansible', kind: 'created', status: 'draft' }]);
+    expect(published.outcomes[0]).toMatchObject({ kind: 'created', status: 'published' });
+  });
+
+  it('reports a second identical run as unchanged and writes nothing', async () => {
+    const d = deps();
+    await run(d, [item()], { publish: true });
+
+    const again = await run(d, [item()], { publish: true });
+
+    expect(again.outcomes).toEqual([{ slug: 'terraform-vs-ansible', kind: 'unchanged' }]);
+    expect(again.written).toBe(false);
+    expect((await d.questions.findBySlug('terraform-vs-ansible'))?.version).toBe(2);
+    expect(d.questions.size).toBe(1);
+  });
+
+  it('updates in place and lists exactly the fields that changed', async () => {
+    const d = deps();
+    await run(d, [item()]);
+
+    const edited = await run(d, [item({ difficulty: 'hard', tags: ['terraform'] })]);
+
+    expect(edited.outcomes[0]).toEqual({
+      slug: 'terraform-vs-ansible',
+      kind: 'updated',
+      changes: [
+        { field: 'difficulty', before: 'medium', after: 'hard' },
+        { field: 'tags', before: '["ansible","terraform"]', after: '["terraform"]' },
+      ],
+    });
+    expect(d.questions.size).toBe(1);
+  });
+
+  it('saves nothing on a dry run but reports what would happen', async () => {
+    const d = deps();
+
+    const report = await run(d, [item()], { dryRun: true });
+
+    expect(report.outcomes[0]).toMatchObject({ kind: 'created' });
+    expect(report.written).toBe(false);
+    expect(d.questions.size).toBe(0);
+  });
+
+  it('fails a bad item without stopping the rest', async () => {
+    const d = deps();
+
+    const report = await run(d, [
+      item({ slug: 'too-short', stem: 'Too short' }),
+      item(),
+    ]);
+
+    expect(report.outcomes.map((o) => o.kind)).toEqual(['failed', 'created']);
+    expect(d.questions.size).toBe(1);
+  });
+
+  it('rejects a slug or wording repeated within one import, even on a dry run', async () => {
+    const d = deps();
+
+    const report = await run(
+      d,
+      [item(), item({ stem: 'A different question about Terraform.' }), item({ slug: 'copy' })],
+      { dryRun: true },
+    );
+
+    expect(report.outcomes.map((o) => o.kind)).toEqual(['created', 'failed', 'failed']);
+  });
+
+  it('rejects wording that already belongs to a question created elsewhere', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const report = await run(d, [item()]);
+
+    expect(report.outcomes[0]).toMatchObject({ kind: 'failed', error: { code: 'CONFLICT' } });
+  });
+
+  it('leaves an archived question archived even when publishing', async () => {
+    const d = deps();
+    await run(d, [item()], { publish: true });
+    const stored = await d.questions.findBySlug('terraform-vs-ansible');
+    await archiveQuestion({ id: stored!.id, moderatorIsAdmin: true }, d);
+
+    await run(d, [item({ difficulty: 'hard' })], { publish: true });
+
+    expect((await d.questions.findBySlug('terraform-vs-ansible'))?.status).toBe('archived');
+  });
+});
+
+describe('listQuestionFacets', () => {
+  const seed = async () => {
+    const d = deps();
+    await createQuestion(validInput({ topicPath: 'devops/iac', tags: ['terraform', 'aws'] }), d);
+    await createQuestion(
+      validInput({ stem: 'Docker image versus container?', topicPath: 'devops/docker', tags: ['docker', 'aws'] }),
+      d,
+    );
+    await createQuestion(
+      validInput({ stem: 'Explain the CAP theorem.', topicPath: 'system-design', tags: ['cap'] }),
+      d,
+    );
+    return d;
+  };
+
+  it('rolls topic counts up to their ancestors', async () => {
+    const facets = await listQuestionFacets({ viewerIsAdmin: true }, await seed());
+
+    expect(facets.topics.map((t) => [t.path, t.count])).toEqual([
+      ['devops', 2],
+      ['system-design', 1],
+    ]);
+    expect(facets.topics[0].children.map((t) => [t.path, t.count])).toEqual([
+      ['devops/docker', 1],
+      ['devops/iac', 1],
+    ]);
+  });
+
+  it('lists the most-used tags first', async () => {
+    const facets = await listQuestionFacets({ viewerIsAdmin: true }, await seed());
+
+    expect(facets.tags[0]).toEqual({ tag: 'aws', count: 2 });
+  });
+
+  it('counts only published questions for learners', async () => {
+    const d = await seed();
+    await publishQuestion({ id: 'q-3', moderatorId: 'a', moderatorIsAdmin: true }, d);
+
+    const facets = await listQuestionFacets({ viewerIsAdmin: false }, d);
+
+    expect(facets.topics.map((t) => t.path)).toEqual(['system-design']);
+  });
+});
+
+describe('searchQuestions (ids and difficulty sort)', () => {
+  it('restricts to the given ids, and an empty list matches nothing', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+    await createQuestion(validInput({ stem: 'Explain what a Kubernetes pod is.' }), d);
+
+    const some = await searchQuestions({ ids: ['q-2'], viewerIsAdmin: true }, d);
+    const none = await searchQuestions({ ids: [], viewerIsAdmin: true }, d);
+
+    expect(some.items.map((q) => q.id)).toEqual(['q-2']);
+    expect(none.total).toBe(0);
+  });
+
+  it('sorts hardest first by meaning, not alphabetically', async () => {
+    const d = deps();
+    for (const difficulty of ['medium', 'hard', 'easy'] as const) {
+      await createQuestion(validInput({ stem: `A ${difficulty} question here.`, difficulty }), d);
+    }
+
+    const page = await searchQuestions({ sort: 'hardest', viewerIsAdmin: true }, d);
+
+    expect(page.items.map((q) => q.difficulty)).toEqual(['hard', 'medium', 'easy']);
   });
 });

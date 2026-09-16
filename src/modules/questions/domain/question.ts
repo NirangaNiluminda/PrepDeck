@@ -1,5 +1,6 @@
 import { type Result, ok, err, validationError } from '@/shared/result';
 import { type Difficulty, isDifficulty } from './difficulty';
+import { isSlug } from './slug';
 import { TopicPath } from './topic-path';
 
 export const QUESTION_TYPES = ['mcq', 'short-answer', 'flashcard', 'code'] as const;
@@ -30,6 +31,12 @@ export interface QuestionAnswer {
 
 export interface QuestionProps {
   readonly id: string;
+  /**
+   * Stable key for questions that live in files, so importing the same file
+   * again updates the question instead of duplicating it. Questions created
+   * through the API or admin UI may have none.
+   */
+  readonly slug?: string;
   readonly stem: string;
   readonly type: QuestionType;
   readonly difficulty: Difficulty;
@@ -45,8 +52,9 @@ export interface QuestionProps {
   readonly version: number;
 }
 
-export interface NewQuestionInput {
-  readonly id: string;
+/** Everything an author controls. Identity, lifecycle and audit fields are not in here. */
+export interface QuestionContent {
+  readonly slug?: string;
   readonly stem: string;
   readonly type: QuestionType;
   readonly difficulty: Difficulty;
@@ -54,10 +62,19 @@ export interface NewQuestionInput {
   readonly tags?: readonly string[];
   readonly answer: QuestionAnswer;
   readonly options?: readonly McqOption[];
-  readonly authorId: string;
   readonly source?: string;
+}
+
+export interface NewQuestionInput extends QuestionContent {
+  readonly id: string;
+  readonly authorId: string;
   readonly now: Date;
 }
+
+type ValidContent = Pick<
+  QuestionProps,
+  'slug' | 'stem' | 'type' | 'difficulty' | 'topicPath' | 'tags' | 'answer' | 'options' | 'source'
+>;
 
 const MIN_STEM = 10;
 const MAX_STEM = 2000;
@@ -66,6 +83,11 @@ const MAX_TAGS = 10;
 const normaliseTags = (tags: readonly string[] = []): string[] =>
   Array.from(new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))).sort();
 
+const optionalText = (value?: string): string | undefined => value?.trim() || undefined;
+
+const isQuestionType = (v: unknown): v is QuestionType =>
+  typeof v === 'string' && (QUESTION_TYPES as readonly string[]).includes(v);
+
 export class Question {
   private constructor(private readonly props: QuestionProps) {}
 
@@ -73,45 +95,15 @@ export class Question {
 
   /** Enforces every invariant. There is no other way to make a valid Question. */
   static create(input: NewQuestionInput): Result<Question> {
-    const stem = input.stem.trim();
-
-    if (stem.length < MIN_STEM) {
-      return err(validationError(`Question must be at least ${MIN_STEM} characters`));
-    }
-    if (stem.length > MAX_STEM) {
-      return err(validationError(`Question may not exceed ${MAX_STEM} characters`));
-    }
-    if (!isDifficulty(input.difficulty)) {
-      return err(validationError(`Unknown difficulty '${input.difficulty}'`));
-    }
-    if (!input.answer.modelAnswer.trim()) {
-      return err(validationError('A model answer is required'));
-    }
-
-    const tags = normaliseTags(input.tags);
-    if (tags.length > MAX_TAGS) {
-      return err(validationError(`A question may carry at most ${MAX_TAGS} tags`));
-    }
-
-    const topic = TopicPath.create(input.topicPath);
-    if (!topic.ok) return topic;
-
-    const optionCheck = Question.validateOptions(input.type, input.options);
-    if (!optionCheck.ok) return optionCheck;
+    const content = Question.validate(input);
+    if (!content.ok) return content;
 
     return ok(
       new Question({
+        ...content.value,
         id: input.id,
-        stem,
-        type: input.type,
-        difficulty: input.difficulty,
-        topicPath: topic.value,
-        tags,
-        answer: input.answer,
-        options: input.options,
         status: 'draft',
         authorId: input.authorId,
-        source: input.source,
         createdAt: input.now,
         updatedAt: input.now,
         version: 1,
@@ -128,6 +120,72 @@ export class Question {
     return new Question(props);
   }
 
+  /**
+   * The single gate for author-controlled content, shared by create and
+   * revise so an edit can never bypass a rule that creation enforces. Also
+   * normalises, so the same content always produces the same stored shape
+   * whichever entry point it came through.
+   */
+  private static validate(content: QuestionContent): Result<ValidContent> {
+    const stem = content.stem.trim();
+
+    if (stem.length < MIN_STEM) {
+      return err(validationError(`Question must be at least ${MIN_STEM} characters`));
+    }
+    if (stem.length > MAX_STEM) {
+      return err(validationError(`Question may not exceed ${MAX_STEM} characters`));
+    }
+    if (!isQuestionType(content.type)) {
+      return err(validationError(`Unknown question type '${content.type}'`));
+    }
+    if (!isDifficulty(content.difficulty)) {
+      return err(validationError(`Unknown difficulty '${content.difficulty}'`));
+    }
+
+    const modelAnswer = content.answer.modelAnswer.trim();
+    if (!modelAnswer) {
+      return err(validationError('A model answer is required'));
+    }
+
+    const tags = normaliseTags(content.tags);
+    if (tags.length > MAX_TAGS) {
+      return err(validationError(`A question may carry at most ${MAX_TAGS} tags`));
+    }
+
+    const slug = optionalText(content.slug);
+    if (slug !== undefined && !isSlug(slug)) {
+      return err(validationError(`Slug '${slug}' must be lowercase words joined by hyphens`));
+    }
+
+    const topic = TopicPath.create(content.topicPath);
+    if (!topic.ok) return topic;
+
+    const optionCheck = Question.validateOptions(content.type, content.options);
+    if (!optionCheck.ok) return optionCheck;
+
+    const references = content.answer.references?.map((r) => r.trim()).filter(Boolean);
+
+    return ok({
+      slug,
+      stem,
+      type: content.type,
+      difficulty: content.difficulty,
+      topicPath: topic.value,
+      tags,
+      answer: {
+        modelAnswer,
+        keyPoints: content.answer.keyPoints.map((k) => k.trim()).filter(Boolean),
+        explanation: optionalText(content.answer.explanation),
+        references: references?.length ? references : undefined,
+      },
+      options:
+        content.type === 'mcq'
+          ? content.options?.map((o) => ({ id: o.id, text: o.text.trim(), correct: o.correct }))
+          : undefined,
+      source: optionalText(content.source),
+    });
+  }
+
   private static validateOptions(
     type: QuestionType,
     options?: readonly McqOption[],
@@ -142,6 +200,9 @@ export class Question {
     }
     if (options.filter((o) => o.correct).length !== 1) {
       return err(validationError('Exactly one option must be marked correct'));
+    }
+    if (new Set(options.map((o) => o.id)).size !== options.length) {
+      return err(validationError('Option ids must be unique'));
     }
     return ok(true);
   }
@@ -166,29 +227,30 @@ export class Question {
   }
 
   /** Soft delete. Community content is never physically removed. */
-  archive(now: Date): Question {
-    return this.with({ status: 'archived' }, now);
+  archive(now: Date): Result<Question> {
+    if (this.props.status === 'archived') {
+      return err(validationError('Question is already archived'));
+    }
+    return ok(this.with({ status: 'archived' }, now));
   }
 
-  reviseContent(
-    patch: { stem?: string; answer?: QuestionAnswer; difficulty?: Difficulty; tags?: readonly string[] },
-    now: Date,
-  ): Result<Question> {
-    const stem = patch.stem?.trim() ?? this.props.stem;
-    if (stem.length < MIN_STEM) {
-      return err(validationError(`Question must be at least ${MIN_STEM} characters`));
+  /** Undoes archive. The question comes back as a draft and must be published again. */
+  restore(now: Date): Result<Question> {
+    if (this.props.status !== 'archived') {
+      return err(validationError('Only archived questions can be restored'));
     }
-    return ok(
-      this.with(
-        {
-          stem,
-          answer: patch.answer ?? this.props.answer,
-          difficulty: patch.difficulty ?? this.props.difficulty,
-          tags: patch.tags ? normaliseTags(patch.tags) : this.props.tags,
-        },
-        now,
-      ),
-    );
+    return ok(this.with({ status: 'draft' }, now));
+  }
+
+  /**
+   * Replaces the author-controlled content wholesale rather than patching it,
+   * so a field can be cleared (an explanation removed, say) as easily as it
+   * can be changed. Status, author and createdAt are untouched.
+   */
+  reviseContent(content: QuestionContent, now: Date): Result<Question> {
+    const valid = Question.validate(content);
+    if (!valid.ok) return valid;
+    return ok(this.with(valid.value, now));
   }
 
   private with(patch: Partial<QuestionProps>, now: Date): Question {
@@ -203,6 +265,7 @@ export class Question {
   // ── Reads ───────────────────────────────────────────────────────────────
 
   get id() { return this.props.id; }
+  get slug() { return this.props.slug; }
   get stem() { return this.props.stem; }
   get type() { return this.props.type; }
   get difficulty() { return this.props.difficulty; }

@@ -7,13 +7,12 @@ import type {
   QuestionFilter,
   QuestionRepository,
   QuestionSort,
+  TagCount,
   TopicCount,
 } from '../../ports/question-repository';
 import { QuestionMapper, type QuestionDocument } from './question-document';
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const DIFFICULTY_RANK: Record<string, number> = { easy: 1, medium: 2, hard: 3 };
 
 /**
  * Every Mongo-ism is confined to this file. Nothing above it knows that
@@ -37,6 +36,11 @@ export class MongoQuestionRepository implements QuestionRepository {
       .map((id) => byId.get(id))
       .filter((d): d is QuestionDocument => Boolean(d))
       .map(QuestionMapper.toDomain);
+  }
+
+  async findBySlug(slug: string): Promise<Question | null> {
+    const doc = await this.collection.findOne({ slug });
+    return doc ? QuestionMapper.toDomain(doc) : null;
   }
 
   async findByFilter(filter: QuestionFilter): Promise<Page<Question>> {
@@ -77,6 +81,18 @@ export class MongoQuestionRepository implements QuestionRepository {
     return rows.map((r) => ({ topicPath: r._id, count: r.count }));
   }
 
+  async countByTag(filter: QuestionFilter = {}): Promise<TagCount[]> {
+    const rows = await this.collection
+      .aggregate<{ _id: string; count: number }>([
+        { $match: this.toQuery(filter) },
+        { $unwind: '$tags' },
+        { $group: { _id: '$tags', count: { $sum: 1 } } },
+        { $sort: { count: -1, _id: 1 } },
+      ])
+      .toArray();
+    return rows.map((r) => ({ tag: r._id, count: r.count }));
+  }
+
   async save(question: Question): Promise<void> {
     const doc = QuestionMapper.toPersistence(question);
     await this.collection.replaceOne({ _id: doc._id }, doc, { upsert: true });
@@ -95,9 +111,12 @@ export class MongoQuestionRepository implements QuestionRepository {
     );
   }
 
-  async existsWithStem(stem: string): Promise<boolean> {
+  async existsWithStem(stem: string, exceptId?: string): Promise<boolean> {
     const found = await this.collection.findOne(
-      { stemLower: stem.trim().toLowerCase() },
+      {
+        stemLower: stem.trim().toLowerCase(),
+        ...(exceptId ? { _id: { $ne: exceptId } } : {}),
+      },
       { projection: { _id: 1 } },
     );
     return found !== null;
@@ -121,7 +140,13 @@ export class MongoQuestionRepository implements QuestionRepository {
     if (filter.statuses?.length) query.status = { $in: [...filter.statuses] };
     if (filter.authorId) query.authorId = filter.authorId;
     if (filter.tags?.length) query.tags = { $all: [...filter.tags] };
-    if (filter.excludeIds?.length) query._id = { $nin: [...filter.excludeIds] };
+    if (filter.ids || filter.excludeIds?.length) {
+      // `ids: []` must match nothing, and `$in: []` does exactly that.
+      query._id = {
+        ...(filter.ids ? { $in: [...filter.ids] } : {}),
+        ...(filter.excludeIds?.length ? { $nin: [...filter.excludeIds] } : {}),
+      };
+    }
     if (filter.text?.trim()) {
       query.stemLower = { $regex: escapeRegex(filter.text.trim().toLowerCase()) };
     }
@@ -133,19 +158,11 @@ export class MongoQuestionRepository implements QuestionRepository {
       case 'oldest':
         return { createdAt: 1 };
       case 'easiest':
-        return { difficulty: 1, createdAt: -1 };
+        return { difficultyRank: 1, createdAt: -1 };
       case 'hardest':
-        return { difficulty: -1, createdAt: -1 };
+        return { difficultyRank: -1, createdAt: -1 };
       default:
         return { createdAt: -1 };
     }
   }
 }
-
-/**
- * Note: 'easiest'/'hardest' sort alphabetically here (easy < hard < medium),
- * which is wrong. Fix by persisting a numeric `difficultyRank` alongside
- * `difficulty` in the mapper and sorting on that. Left visible on purpose —
- * it is exactly the kind of detail an adapter owns and the domain must not.
- */
-export const DIFFICULTY_RANK_REFERENCE = DIFFICULTY_RANK;

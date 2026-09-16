@@ -1,4 +1,5 @@
 import { type Result, ok, err, validationError } from '@/shared/result';
+import { isSlug } from './slug';
 
 /**
  * Hierarchical topic, stored as a normalised slug path:
@@ -8,7 +9,6 @@ import { type Result, ok, err, validationError } from '@/shared/result';
  * under devops" is a cheap prefix match in any database — no recursive CTE,
  * no $graphLookup. That portability is the whole point.
  */
-const SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_DEPTH = 4;
 
 export class TopicPath {
@@ -23,7 +23,7 @@ export class TopicPath {
     if (segments.length > MAX_DEPTH) {
       return err(validationError(`Topic path may not exceed ${MAX_DEPTH} levels`));
     }
-    const bad = segments.filter((s) => !SEGMENT.test(s));
+    const bad = segments.filter((s) => !isSlug(s));
     if (bad.length > 0) {
       return err(
         validationError('Topic segments must be lowercase slugs', {

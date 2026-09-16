@@ -25,6 +25,11 @@ export interface QuestionFilter {
   readonly authorId?: string;
   /** Free-text over the stem. */
   readonly text?: string;
+  /**
+   * Restricts results to these ids, e.g. a user's bookmarks. An empty list
+   * matches nothing, which is different from leaving the field out.
+   */
+  readonly ids?: readonly string[];
   /** Used by exam generation to avoid repeating questions. */
   readonly excludeIds?: readonly string[];
   readonly page?: Pagination;
@@ -38,14 +43,23 @@ export interface TopicCount {
   readonly count: number;
 }
 
+export interface TagCount {
+  readonly tag: string;
+  readonly count: number;
+}
+
 export interface QuestionRepository {
   findById(id: string): Promise<Question | null>;
   findByIds(ids: readonly string[]): Promise<Question[]>;
+  findBySlug(slug: string): Promise<Question | null>;
   findByFilter(filter: QuestionFilter): Promise<Page<Question>>;
   /** Deterministic random sample for exam generation. */
   sample(filter: QuestionFilter, size: number): Promise<Question[]>;
   countByTopic(filter?: QuestionFilter): Promise<TopicCount[]>;
+  /** Most-used first, ties broken alphabetically. */
+  countByTag(filter?: QuestionFilter): Promise<TagCount[]>;
   save(question: Question): Promise<void>;
   saveMany(questions: readonly Question[]): Promise<void>;
-  existsWithStem(stem: string): Promise<boolean>;
+  /** Case-insensitive exact match. `exceptId` lets an edit keep its own wording. */
+  existsWithStem(stem: string, exceptId?: string): Promise<boolean>;
 }

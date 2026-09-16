@@ -1,5 +1,6 @@
 import type { Page } from '@/shared/ports';
 import { DEFAULT_PAGE } from '@/shared/ports';
+import { visibleStatuses } from '../domain/visibility';
 import type { QuestionFilter, QuestionRepository } from '../ports/question-repository';
 import { type QuestionSummary, toSummary } from '../ports/dto';
 
@@ -23,13 +24,9 @@ export async function searchQuestions(
 ): Promise<Page<QuestionSummary>> {
   const { viewerIsAdmin, ...filter } = input;
 
-  // Authorisation is policy, so it belongs here rather than in the adapter or
-  // the route. Learners see published questions only, whatever they ask for.
-  const statuses = viewerIsAdmin ? filter.statuses : (['published'] as const);
-
   const page = await deps.questions.findByFilter({
     ...filter,
-    statuses,
+    statuses: visibleStatuses(viewerIsAdmin, filter.statuses),
     page: filter.page ?? DEFAULT_PAGE,
     sort: filter.sort ?? 'newest',
   });

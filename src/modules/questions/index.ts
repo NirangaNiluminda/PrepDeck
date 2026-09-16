@@ -15,6 +15,18 @@ export type { GetQuestionInput } from './use-cases/get-question';
 export { createQuestion } from './use-cases/create-question';
 export type { CreateQuestionInput } from './use-cases/create-question';
 export { publishQuestion } from './use-cases/publish-question';
+export { updateQuestion } from './use-cases/update-question';
+export type { UpdateQuestionInput } from './use-cases/update-question';
+export { archiveQuestion } from './use-cases/archive-question';
+export { restoreQuestion } from './use-cases/restore-question';
+export { listQuestionFacets } from './use-cases/list-question-facets';
+export type { QuestionFacets } from './use-cases/list-question-facets';
+export { importQuestions } from './use-cases/import-questions';
+export type {
+  ImportQuestionItem,
+  ImportOutcome,
+  ImportReport,
+} from './use-cases/import-questions';
 
 // Contracts other modules legitimately need.
 export type {
@@ -22,12 +34,21 @@ export type {
   QuestionFilter,
   QuestionSort,
   TopicCount,
+  TagCount,
 } from './ports/question-repository';
 export type { QuestionSummary, QuestionDetail } from './ports/dto';
 export { QUESTION_TYPES, QUESTION_STATUSES } from './domain/question';
-export type { QuestionType, QuestionStatus } from './domain/question';
+export type {
+  QuestionType,
+  QuestionStatus,
+  QuestionContent,
+  QuestionAnswer,
+  McqOption,
+} from './domain/question';
 export { DIFFICULTIES } from './domain/difficulty';
 export type { Difficulty } from './domain/difficulty';
+export type { FieldChange } from './domain/question-diff';
+export type { TopicNode } from './domain/topic-tree';
 
 // Adapters — exported for the composition root and tests only.
 export { InMemoryQuestionRepository } from './adapters/in-memory/in-memory-question-repository';

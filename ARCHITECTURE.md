@@ -86,10 +86,6 @@ never by touching the questions collection directly.
 
 ## Known rough edges left visible on purpose
 
-- `MongoQuestionRepository.toSort` sorts difficulty alphabetically
-  (easy < hard < medium). Fix by persisting a numeric `difficultyRank` in the
-  mapper. Left in as an example of a concern the adapter owns and the domain
-  must not.
 - Free-text search uses a regex scan. Fine to a few thousand questions; move to
   Atlas Search or Meilisearch behind the same `QuestionFilter.text` field —
   the port does not change.

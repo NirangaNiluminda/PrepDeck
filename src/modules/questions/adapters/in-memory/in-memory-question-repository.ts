@@ -7,6 +7,7 @@ import type {
   QuestionFilter,
   QuestionRepository,
   QuestionSort,
+  TagCount,
   TopicCount,
 } from '../../ports/question-repository';
 
@@ -29,6 +30,10 @@ export class InMemoryQuestionRepository implements QuestionRepository {
 
   async findByIds(ids: readonly string[]): Promise<Question[]> {
     return ids.map((id) => this.store.get(id)).filter((q): q is Question => Boolean(q));
+  }
+
+  async findBySlug(slug: string): Promise<Question | null> {
+    return [...this.store.values()].find((q) => q.slug === slug) ?? null;
   }
 
   async findByFilter(filter: QuestionFilter): Promise<Page<Question>> {
@@ -64,6 +69,16 @@ export class InMemoryQuestionRepository implements QuestionRepository {
       .sort((a, b) => b.count - a.count);
   }
 
+  async countByTag(filter: QuestionFilter = {}): Promise<TagCount[]> {
+    const counts = new Map<string, number>();
+    for (const q of this.match(filter)) {
+      q.tags.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1));
+    }
+    return [...counts.entries()]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  }
+
   async save(question: Question): Promise<void> {
     this.store.set(question.id, question);
   }
@@ -72,9 +87,11 @@ export class InMemoryQuestionRepository implements QuestionRepository {
     questions.forEach((q) => this.store.set(q.id, q));
   }
 
-  async existsWithStem(stem: string): Promise<boolean> {
+  async existsWithStem(stem: string, exceptId?: string): Promise<boolean> {
     const needle = stem.trim().toLowerCase();
-    return [...this.store.values()].some((q) => q.stem.toLowerCase() === needle);
+    return [...this.store.values()].some(
+      (q) => q.id !== exceptId && q.stem.toLowerCase() === needle,
+    );
   }
 
   // ── Test helpers (not part of the port) ────────────────────────────────
@@ -96,9 +113,11 @@ export class InMemoryQuestionRepository implements QuestionRepository {
       if (parsed.ok) ancestor = parsed.value;
     }
     const needle = filter.text?.trim().toLowerCase();
+    const included = filter.ids ? new Set(filter.ids) : null;
     const excluded = new Set(filter.excludeIds ?? []);
 
     return [...this.store.values()].filter((q) => {
+      if (included && !included.has(q.id)) return false;
       if (excluded.has(q.id)) return false;
       if (ancestor && !q.topicPath.isUnder(ancestor)) return false;
       if (filter.difficulties?.length && !filter.difficulties.includes(q.difficulty)) return false;
@@ -112,11 +131,12 @@ export class InMemoryQuestionRepository implements QuestionRepository {
   }
 
   private sort(items: Question[], sort: QuestionSort): Question[] {
+    const newest = (a: Question, b: Question) => b.createdAt.getTime() - a.createdAt.getTime();
     const by: Record<QuestionSort, (a: Question, b: Question) => number> = {
-      newest: (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      newest,
       oldest: (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-      easiest: (a, b) => compareDifficulty(a.difficulty, b.difficulty),
-      hardest: (a, b) => compareDifficulty(b.difficulty, a.difficulty),
+      easiest: (a, b) => compareDifficulty(a.difficulty, b.difficulty) || newest(a, b),
+      hardest: (a, b) => compareDifficulty(b.difficulty, a.difficulty) || newest(a, b),
     };
     return [...items].sort(by[sort]);
   }

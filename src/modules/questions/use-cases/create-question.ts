@@ -1,19 +1,10 @@
 import type { Clock, IdGenerator } from '@/shared/ports';
 import { type Result, ok, err, conflict } from '@/shared/result';
-import { Question, type McqOption, type QuestionAnswer, type QuestionType } from '../domain/question';
-import type { Difficulty } from '../domain/difficulty';
+import { Question, type QuestionContent } from '../domain/question';
 import type { QuestionRepository } from '../ports/question-repository';
 import { type QuestionDetail, toDetail } from '../ports/dto';
 
-export interface CreateQuestionInput {
-  readonly stem: string;
-  readonly type: QuestionType;
-  readonly difficulty: Difficulty;
-  readonly topicPath: string;
-  readonly tags?: readonly string[];
-  readonly answer: QuestionAnswer;
-  readonly options?: readonly McqOption[];
-  readonly source?: string;
+export interface CreateQuestionInput extends QuestionContent {
   readonly authorId: string;
 }
 
@@ -41,6 +32,11 @@ export async function createQuestion(
     now: deps.clock.now(),
   });
   if (!created.ok) return created;
+
+  const { slug } = created.value;
+  if (slug && (await deps.questions.findBySlug(slug))) {
+    return err(conflict(`Slug '${slug}' is already taken`));
+  }
 
   await deps.questions.save(created.value);
   return ok(toDetail(created.value, true));
