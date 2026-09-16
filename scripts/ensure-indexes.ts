@@ -1,5 +1,11 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, type IndexDescription } from 'mongodb';
 import { QUESTION_INDEXES } from '@/modules/questions';
+import { BOOKMARK_INDEXES } from '@/modules/bookmarks';
+
+const COLLECTIONS: Record<string, IndexDescription[]> = {
+  questions: QUESTION_INDEXES,
+  bookmarks: BOOKMARK_INDEXES,
+};
 
 /**
  * Idempotent: createIndexes is a no-op for an index that already exists with
@@ -14,8 +20,10 @@ async function main(): Promise<void> {
 
   try {
     const db = client.db(process.env.MONGODB_DB ?? 'interview_prep');
-    const created = await db.collection('questions').createIndexes(QUESTION_INDEXES);
-    console.log(`questions: ensured ${created.length} indexes — ${created.join(', ')}`);
+    for (const [collection, indexes] of Object.entries(COLLECTIONS)) {
+      const created = await db.collection(collection).createIndexes(indexes);
+      console.log(`${collection}: ensured ${created.length} indexes — ${created.join(', ')}`);
+    }
   } finally {
     await client.close();
   }

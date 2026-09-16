@@ -5,6 +5,11 @@ import {
   type QuestionRepository,
   type QuestionDocument,
 } from '@/modules/questions';
+import {
+  MongoBookmarkRepository,
+  type BookmarkRepository,
+  type BookmarkDocument,
+} from '@/modules/bookmarks';
 import { getDb } from './mongo-client';
 
 /**
@@ -14,6 +19,7 @@ import { getDb } from './mongo-client';
  */
 export interface Container {
   readonly questions: QuestionRepository;
+  readonly bookmarks: BookmarkRepository;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 }
@@ -27,6 +33,7 @@ export async function getContainer(): Promise<Container> {
 
   cached = {
     questions: new MongoQuestionRepository(db.collection<QuestionDocument>('questions')),
+    bookmarks: new MongoBookmarkRepository(db.collection<BookmarkDocument>('bookmarks')),
     clock: systemClock,
     ids: uuidGenerator,
   };
