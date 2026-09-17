@@ -33,7 +33,12 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
             <Link href="/" className="font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
               PrepDeck
             </Link>
-            <nav aria-label="Main" className="flex items-center gap-1 whitespace-nowrap text-sm">
+            {/* min-w-0 lets this flex item shrink below its content width, so a
+                narrow viewport scrolls the nav itself instead of the whole page. */}
+            <nav
+              aria-label="Main"
+              className="flex min-w-0 items-center gap-1 overflow-x-auto whitespace-nowrap text-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
               <Link href="/" className={NAV_LINK}>
                 Browse
               </Link>

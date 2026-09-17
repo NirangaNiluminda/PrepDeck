@@ -40,26 +40,33 @@ export function PracticeSession({ cards }: { cards: readonly SessionCard[] }) {
   const [index, setIndex] = useState(0);
   const [counts, setCounts] = useState<Record<Rating, number>>({ again: 0, hard: 0, good: 0, easy: 0 });
   const [failedCount, setFailedCount] = useState(0);
+  const [savingCount, setSavingCount] = useState(0);
 
   const current = cards[index];
   const done = index >= cards.length;
 
   // Advance immediately; the attempt is recorded in the background so a
-  // 100-card session never waits on the network between cards.
+  // 100-card session never waits on the network between cards. `savingCount`
+  // only matters for the very last card: without it, finishing a session and
+  // immediately navigating away could outrun that last save arriving at a
+  // real database over a real network, silently dropping it.
   const advance = (rating: Rating, timeTakenMs: number, picked: string | null) => {
     const correct =
       current.question.options && current.question.answer?.correctOptionId
         ? picked === current.question.answer.correctOptionId
         : undefined;
 
-    recordAttemptAction({ questionId: current.question.id, rating, timeTakenMs, correct }).catch(() => {
-      setFailedCount((n) => n + 1);
-    });
+    setSavingCount((n) => n + 1);
+    recordAttemptAction({ questionId: current.question.id, rating, timeTakenMs, correct })
+      .catch(() => setFailedCount((n) => n + 1))
+      .finally(() => setSavingCount((n) => n - 1));
     setCounts((c) => ({ ...c, [rating]: c[rating] + 1 }));
     setIndex((i) => i + 1);
   };
 
-  if (done) return <SessionComplete counts={counts} failedCount={failedCount} />;
+  if (done) {
+    return savingCount > 0 ? <FinishingUp /> : <SessionComplete counts={counts} failedCount={failedCount} />;
+  }
   if (!current) return null;
 
   return (
@@ -208,6 +215,14 @@ function RatingBar({ previewIntervals, onRate }: { previewIntervals: Record<Rati
           <span className="text-xs opacity-80">{formatInterval(previewIntervals[rating])}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+function FinishingUp() {
+  return (
+    <div className="py-12 text-center">
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">Saving your last few ratings…</p>
     </div>
   );
 }
