@@ -10,6 +10,21 @@ import {
   type BookmarkRepository,
   type BookmarkDocument,
 } from '@/modules/bookmarks';
+import {
+  MongoAttemptRepository,
+  MongoReviewCardRepository,
+  sm2Scheduler,
+  type AttemptDocument,
+  type AttemptRepository,
+  type ReviewCardDocument,
+  type ReviewCardRepository,
+  type ReviewScheduler,
+} from '@/modules/practice';
+import {
+  MongoNoteRepository,
+  type NoteDocument,
+  type NoteRepository,
+} from '@/modules/notes';
 import { getDb } from './mongo-client';
 
 /**
@@ -20,6 +35,10 @@ import { getDb } from './mongo-client';
 export interface Container {
   readonly questions: QuestionRepository;
   readonly bookmarks: BookmarkRepository;
+  readonly reviewCards: ReviewCardRepository;
+  readonly attempts: AttemptRepository;
+  readonly notes: NoteRepository;
+  readonly scheduler: ReviewScheduler;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 }
@@ -34,6 +53,10 @@ export async function getContainer(): Promise<Container> {
   cached = {
     questions: new MongoQuestionRepository(db.collection<QuestionDocument>('questions')),
     bookmarks: new MongoBookmarkRepository(db.collection<BookmarkDocument>('bookmarks')),
+    reviewCards: new MongoReviewCardRepository(db.collection<ReviewCardDocument>('reviewCards')),
+    attempts: new MongoAttemptRepository(db.collection<AttemptDocument>('attempts')),
+    notes: new MongoNoteRepository(db.collection<NoteDocument>('notes')),
+    scheduler: sm2Scheduler,
     clock: systemClock,
     ids: uuidGenerator,
   };
