@@ -3,8 +3,8 @@
 A filterable, practisable knowledge base of technical interview questions —
 built to replace revising from long, unsearchable chat transcripts.
 
-Spaced repetition, timed mock exams and community contributions come later; see
-[`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the staged roadmap.
+Spaced repetition is here; timed mock exams and community contributions come
+later — see [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the staged roadmap.
 
 ## Stack
 
@@ -30,7 +30,9 @@ Then open http://localhost:3000.
 | Page | What it does |
 |---|---|
 | `/` | Browse and search. Filters live in the URL, so any view can be shared. `/` focuses search, `j` / `k` move through results, `Enter` opens one. |
-| `/questions/[id]` | One question. `Space` reveals the answer, `Esc` goes back to the results. |
+| `/questions/[id]` | One question, with a private notes box. `Space` reveals the answer, `Esc` goes back to the results. |
+| `/practice` | The review session: due cards, then new ones up to a daily cap. `Space` reveals, `1`–`4` rate again/hard/good/easy. |
+| `/progress` | Streak, cards due, mastery by topic, and weakest topics with a one-click link into a session on just that topic. |
 | `/?bookmarked=1` | Your starred questions. |
 | `/admin/questions/new` | Write a question (admins). Edit, publish, archive and restore from the question page. |
 
@@ -94,7 +96,9 @@ src/
       adapters/    in-memory/ and mongo/
       index.ts     the module's public API
     bookmarks/     per-user stars
+    notes/         per-user private notes on a question
     importer/      markdown files → questions
+    practice/      Attempt, ReviewCard, SM-2 scheduler, due queue, mastery
     auth/          dev sign-in behind an AuthProvider port
   composition/     the only place adapters are wired
   app/             Next.js pages, server actions and API routes — thin

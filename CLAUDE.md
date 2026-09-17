@@ -46,9 +46,11 @@ src/
       adapters/    in-memory/ and mongo/
       index.ts     the module's public API
     bookmarks/     per-user stars, same shape
+    notes/         per-user private notes on a question, same shape
     importer/      markdown question files → import items (structure only)
+    practice/      Attempt, ReviewCard, SM-2 scheduler, due queue, mastery
     auth/          getSession() behind an AuthProvider port
-    practice/  exams/  community/  users/     ← not built yet
+    exams/  community/  users/     ← not built yet
   composition/     container.ts — the only place adapters are wired
   app/             Next.js routes — thin
     _components/   UI pieces; _lib/ presentation helpers; actions/ server actions
@@ -117,6 +119,15 @@ passes ~40 lines, extract a domain service.
 - Tests colocated in `tests/<module>.test.ts`, named
   `describe('useCaseName') > it('does X when Y')`.
 - Comments explain **why**, never what. Delete any comment restating the code.
+- **React Compiler's lint rules are stricter than they look.** Calling
+  `Date.now()`/`Math.random()` during render (including in a `useRef()` or
+  `useState()` initializer expression) fails `react-hooks/purity`. Calling
+  `setState` synchronously in a `useEffect` body fails
+  `react-hooks/set-state-in-effect` — setState from an event-listener callback
+  registered inside the effect is fine, that's the endorsed shape. When a
+  child's local state needs to reset whenever some prop (a card, a step)
+  changes, prefer `key={thatProp}` over an effect that calls setState to reset
+  it — see `PracticeCard` in `practice-session.tsx`.
 
 ## Definition of done for any change
 
@@ -129,7 +140,7 @@ passes ~40 lines, extract a domain service.
 
 ## Current state
 
-**Stage 1 is built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
+**Stages 1 and 2 are built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
 
 - `questions`: slugs, create / update / publish / archive / restore, search
   with an `ids` filter, facets (topic tree + tag counts), and `importQuestions`,
@@ -137,18 +148,31 @@ passes ~40 lines, extract a domain service.
 - `importer`: parses `content/questions/**/*.md`; run it with
   `npm run import-questions -- [--dry-run] [--publish]`. `tests/content.test.ts`
   fails if any corpus file doesn't parse or import cleanly.
-- `bookmarks`: per-user stars.
+- `bookmarks`, `notes`: per-user stars and private notes, same shape.
+- `practice`: `sm2Scheduler` (pure, behind the `ReviewScheduler` port),
+  `getDueQueue` (due cards then new ones, capped per day, topic-filterable),
+  `recordAttempt`, `getProgress`/`getWeakAreas` (mastery is a heuristic off
+  each card's own interval and ease factor — see `domain/mastery.ts`).
 - `auth`: `getSession()` is a **dev stand-in** reading `DEV_USER_ID` /
   `DEV_USER_ROLE`. NextAuth + GitHub is still to do, before Stage 4.
-- UI: browse (`/`), question detail, admin create/edit, all keyboard-driven.
+- UI: browse (`/`), question detail with notes, admin create/edit, practice
+  (`/practice`) and progress (`/progress`), all keyboard-driven.
 - Atlas `interview_prep` holds the 28 `starter-seed` questions, published.
 
-The plan says to use Stage 1 for a week before starting Stage 2. The starter
-questions should be rewritten or replaced with the real transcript corpus.
+Stage 2 followed Stage 1 the same day rather than after a week of real usage
+(the plan's suggested pacing) — at the user's explicit request. The starter
+questions should still be rewritten or replaced with the real transcript
+corpus; mastery numbers and the due-card cap are unvalidated against real use.
 
 Pages call `getViewer()` (from `app/_lib/viewer.ts`), which calls
 `connection()`: the dev auth adapter reads env vars rather than cookies, so
 without it Next.js may prerender a page and serve a stale copy.
+
+`PracticeSession` fires `recordAttemptAction` in the background so rating a
+card never waits on the network, but it does wait for those in-flight saves
+before showing the session-complete screen (`savingCount` in
+`practice-session.tsx`) — a fast-finishing session used to be able to
+navigate away before the last save reached Atlas.
 
 See `PROJECT_PLAN.md` for the staged roadmap and `ARCHITECTURE.md` for the
 layering rationale.

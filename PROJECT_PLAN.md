@@ -149,25 +149,50 @@ The only stage that matters for the founder's immediate problem.
 **Done when:** the founder can find any question from the corpus in under five
 seconds and has stopped opening the transcripts. Use it for a week before
 starting Stage 2 — real usage will reorder the backlog.
+— *Skipped that week: Stage 2 was started the same day, at the user's request
+rather than after a week of real usage. Worth watching for whether the due
+queue and mastery numbers actually match how the founder uses the app once
+there is real usage to compare against.*
 
 ### Stage 2 — Practice loop (3–4 days)
 
 This is what converts reading into retention.
 
-- [ ] `practice` module: Attempt, ReviewCard, SM-2 scheduler as a **pure
+- [x] `practice` module: Attempt, ReviewCard, SM-2 scheduler as a **pure
       function** in `domain/scheduler.ts` (testable with zero I/O)
-- [ ] Flashcard review UI: stem → reveal → self-rate `again | hard | good | easy`
-- [ ] Keyboard-first: `space` reveals, `1–4` rates. Non-negotiable for 100-card
+- [x] Flashcard review UI: stem → reveal → self-rate `again | hard | good | easy`
+- [x] Keyboard-first: `space` reveals, `1–4` rates. Non-negotiable for 100-card
       sessions.
-- [ ] Due-card queue with daily new-card cap
-- [ ] Per-user private notes on a question — the founder's own rewording, which
+      — *the whole due queue loads once per session and advances client-side,
+      so rating a card never waits on the network; the one deliberate wait is
+      finishing the session, which holds for the last one or two ratings still
+      in flight before showing the summary — see the "Advance immediately"
+      comment in `PracticeSession`.*
+- [x] Due-card queue with daily new-card cap
+- [x] Per-user private notes on a question — the founder's own rewording, which
       is where the actual learning happens
-- [ ] Progress dashboard: streak, cards due, per-topic mastery heatmap
-- [ ] Weak-area detection: topics with lowest mastery surfaced as a suggested
+      — *shipped as its own `notes` module rather than inside `practice`: the
+      module map below only lists Attempt/ReviewCard/scheduler/due-queue under
+      `practice`'s ownership, and notes have nothing to do with scheduling.*
+- [x] Progress dashboard: streak, cards due, per-topic mastery heatmap
+- [x] Weak-area detection: topics with lowest mastery surfaced as a suggested
       session
+      — *a topic needs at least 3 reviewed questions before it can be called
+      "weak" (`getWeakAreas`'s `minReviewed`), so a single unlucky card doesn't
+      brand a whole topic.*
 
 **Scheduler note:** wrap SM-2 behind a `ReviewScheduler` interface (Strategy).
 You will want to try FSRS later; keep the swap cheap.
+— *Done: `ReviewScheduler` lives in `practice/ports/review-scheduler.ts`;
+`sm2Scheduler` in `domain/scheduler.ts` is the only implementation.*
+
+**Mastery formula, for whoever swaps it out:** `questionMastery()` in
+`practice/domain/mastery.ts` is a heuristic from a card's own interval and
+ease factor — 0 until first reviewed, rising toward 100 as the interval
+matures past 21 days and the ease factor climbs. It reads two numbers already
+on the card rather than maintaining a separate score, and is deliberately the
+simplest thing that could work. Replace it once real review history exists to
+judge it against.
 
 ### Stage 3 — Mock exams (2–3 days)
 
