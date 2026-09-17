@@ -46,3 +46,19 @@ export const SORT_LABELS: Record<string, string> = {
   easiest: 'Easiest first',
   hardest: 'Hardest first',
 };
+
+export const RATING_LABELS: Record<string, string> = {
+  again: 'Again',
+  hard: 'Hard',
+  good: 'Good',
+  easy: 'Easy',
+};
+
+/** Days as a compact unit: 1d, 6d, 3w, 4mo, 1y — matches how spaced-repetition tools show it on rating buttons. */
+export const formatInterval = (days: number): string => {
+  if (days < 1) return '<1d';
+  if (days < 21) return `${days}d`;
+  if (days < 60) return `${Math.round(days / 7)}w`;
+  if (days < 365) return `${Math.round(days / 30)}mo`;
+  return `${Math.round(days / 365)}y`;
+};

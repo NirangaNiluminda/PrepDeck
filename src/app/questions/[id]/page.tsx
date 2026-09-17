@@ -4,13 +4,16 @@ import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { getContainer } from '@/composition/container';
 import { listBookmarkedQuestionIds } from '@/modules/bookmarks';
-import { getQuestion, type QuestionDetail } from '@/modules/questions';
+import { getQuestion } from '@/modules/questions';
+import { getNote } from '@/modules/notes';
+import { AnswerBody } from '../../_components/answer-body';
 import { AnswerReveal } from '../../_components/answer-reveal';
 import { DifficultyBadge, Kbd, StatusBadge, TagLink, TopicTrail } from '../../_components/badges';
 import { BookmarkButton } from '../../_components/bookmark-button';
 import { EscapeTo } from '../../_components/escape-to';
 import { InlineMarkdown, Markdown } from '../../_components/markdown';
 import { ModerationActions } from '../../_components/moderation-actions';
+import { NoteEditor } from '../../_components/note-editor';
 import { browseHref, parseBrowseParams } from '../../_lib/browse-params';
 import { TYPE_LABELS } from '../../_lib/labels';
 import { getViewer } from '../../_lib/viewer';
@@ -44,9 +47,12 @@ export default async function QuestionPage(props: PageProps<'/questions/[id]'>) 
   if (!question) notFound();
 
   const isAdmin = viewer?.role === 'admin';
-  const bookmarked = viewer
-    ? (await listBookmarkedQuestionIds({ userId: viewer.userId }, container)).includes(question.id)
-    : false;
+  const [bookmarked, note] = await Promise.all([
+    viewer
+      ? listBookmarkedQuestionIds({ userId: viewer.userId }, container).then((ids) => ids.includes(question.id))
+      : Promise.resolve(false),
+    viewer ? getNote({ userId: viewer.userId, questionId: question.id }, container) : Promise.resolve(''),
+  ]);
   const backHref = browseHref(parseBrowseParams(search));
 
   return (
@@ -95,68 +101,13 @@ export default async function QuestionPage(props: PageProps<'/questions/[id]'>) 
         </AnswerReveal>
       </div>
 
+      {viewer && (
+        <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+          <NoteEditor questionId={question.id} initialContent={note} />
+        </div>
+      )}
+
       <EscapeTo href={backHref} />
     </article>
-  );
-}
-
-type Answer = NonNullable<QuestionDetail['answer']>;
-
-function AnswerBody({ answer }: { answer: Answer }) {
-  return (
-    <div className="space-y-8">
-      <Section title="Answer">
-        <Markdown>{answer.modelAnswer}</Markdown>
-      </Section>
-
-      {answer.keyPoints.length > 0 && (
-        <Section title="Key points">
-          <ul className="space-y-1.5 text-zinc-800 dark:text-zinc-200">
-            {answer.keyPoints.map((point, index) => (
-              <li key={index} className="flex gap-2.5">
-                <span aria-hidden className="mt-2.5 size-1.5 shrink-0 rounded-full bg-indigo-500" />
-                <span>
-                  <InlineMarkdown>{point}</InlineMarkdown>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-      {answer.explanation && (
-        <Section title="Explanation">
-          <Markdown>{answer.explanation}</Markdown>
-        </Section>
-      )}
-
-      {answer.references && answer.references.length > 0 && (
-        <Section title="References">
-          <ul className="space-y-1 text-sm">
-            {answer.references.map((reference) => (
-              <li key={reference}>
-                <a
-                  href={reference}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="break-all text-indigo-600 hover:underline dark:text-indigo-400"
-                >
-                  {reference}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{title}</h2>
-      {children}
-    </section>
   );
 }

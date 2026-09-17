@@ -38,9 +38,17 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
                 Browse
               </Link>
               {viewer && (
-                <Link href="/?bookmarked=1" className={NAV_LINK}>
-                  Bookmarks
-                </Link>
+                <>
+                  <Link href="/?bookmarked=1" className={NAV_LINK}>
+                    Bookmarks
+                  </Link>
+                  <Link href="/practice" className={NAV_LINK}>
+                    Practice
+                  </Link>
+                  <Link href="/progress" className={NAV_LINK}>
+                    Progress
+                  </Link>
+                </>
               )}
               {viewer?.role === 'admin' && (
                 <Link href="/admin/questions/new" className={NAV_LINK}>

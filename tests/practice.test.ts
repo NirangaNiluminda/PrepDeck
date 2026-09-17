@@ -167,6 +167,22 @@ describe('getDueQueue', () => {
     expect(queue).toHaveLength(0); // the one question that exists is already seen, and not due for a day
   });
 
+  it('previews the interval each rating would produce, from the card\'s real state for a due card and fresh for a new one', async () => {
+    const dueId = await seedPublished(d, { stem: 'A card already reviewed once, due again soon.' });
+    await seedPublished(d, { stem: 'A card never reviewed before, offered as new.' });
+    await recordAttempt({ userId: 'u1', questionId: dueId, rating: 'good', timeTakenMs: 0 }, d); // due in 6 days
+    d.clock.advanceDays(6);
+
+    const queue = await getDueQueue({ userId: 'u1', now: d.clock.now(), newCardCap: 10, limit: 10 }, d);
+
+    const due = queue.find((c) => c.question.id === dueId)!;
+    expect(due.previewIntervals.again).toBe(1);
+    expect(due.previewIntervals.good).toBeGreaterThan(1); // grown from the established interval, not a fresh-card step
+
+    const fresh = queue.find((c) => c.isNew)!;
+    expect(fresh.previewIntervals).toEqual({ again: 1, hard: 1, good: 1, easy: 4 }); // the fixed new-card learning steps
+  });
+
   it('restricts to a topic and its descendants', async () => {
     await seedPublished(d, { stem: 'A DevOps question about pipelines and deploys.', topicPath: 'devops/ci-cd' });
     await seedPublished(d, { stem: 'A database question about indexes and joins.', topicPath: 'databases/indexing' });
