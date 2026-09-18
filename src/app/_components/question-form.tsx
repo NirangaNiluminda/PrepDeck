@@ -51,7 +51,12 @@ export function QuestionForm({ action, initial, types, difficulties, topics, sub
             </select>
           </Field>
           <Field id="difficulty" label="Difficulty">
-            <select id="difficulty" name="difficulty" defaultValue={values.difficulty} className={INPUT}>
+            {/* Keyed on its own value: a <select> resets to whichever <option>
+                was `selected` at mount, and unlike a text input's defaultValue,
+                React never re-applies a new one to an already-mounted select —
+                so without a key, a rejected save reverts this dropdown to
+                whatever it was on page load, silently. */}
+            <select key={values.difficulty} id="difficulty" name="difficulty" defaultValue={values.difficulty} className={INPUT}>
               {difficulties.map((d) => (
                 <option key={d} value={d}>
                   {DIFFICULTY_LABELS[d] ?? d}
