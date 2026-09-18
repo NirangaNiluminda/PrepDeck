@@ -25,6 +25,11 @@ import {
   type NoteDocument,
   type NoteRepository,
 } from '@/modules/notes';
+import {
+  MongoExamSessionRepository,
+  type ExamSessionDocument,
+  type ExamSessionRepository,
+} from '@/modules/exams';
 import { getDb } from './mongo-client';
 
 /**
@@ -38,6 +43,7 @@ export interface Container {
   readonly reviewCards: ReviewCardRepository;
   readonly attempts: AttemptRepository;
   readonly notes: NoteRepository;
+  readonly examSessions: ExamSessionRepository;
   readonly scheduler: ReviewScheduler;
   readonly clock: Clock;
   readonly ids: IdGenerator;
@@ -56,6 +62,7 @@ export async function getContainer(): Promise<Container> {
     reviewCards: new MongoReviewCardRepository(db.collection<ReviewCardDocument>('reviewCards')),
     attempts: new MongoAttemptRepository(db.collection<AttemptDocument>('attempts')),
     notes: new MongoNoteRepository(db.collection<NoteDocument>('notes')),
+    examSessions: new MongoExamSessionRepository(db.collection<ExamSessionDocument>('examSessions')),
     scheduler: sm2Scheduler,
     clock: systemClock,
     ids: uuidGenerator,
