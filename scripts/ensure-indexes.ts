@@ -5,6 +5,7 @@ import { ATTEMPT_INDEXES, REVIEW_CARD_INDEXES } from '@/modules/practice';
 import { NOTE_INDEXES } from '@/modules/notes';
 import { EXAM_SESSION_INDEXES } from '@/modules/exams';
 import { USER_PROFILE_INDEXES } from '@/modules/users';
+import { AUTH_IDENTITY_INDEXES } from '@/modules/auth';
 
 const COLLECTIONS: Record<string, IndexDescription[]> = {
   questions: QUESTION_INDEXES,
@@ -14,6 +15,7 @@ const COLLECTIONS: Record<string, IndexDescription[]> = {
   notes: NOTE_INDEXES,
   examSessions: EXAM_SESSION_INDEXES,
   userProfiles: USER_PROFILE_INDEXES,
+  authIdentities: AUTH_IDENTITY_INDEXES,
 };
 
 /**

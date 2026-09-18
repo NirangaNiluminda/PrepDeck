@@ -1,7 +1,6 @@
 'use server';
 
-import { getContainer } from '@/composition/container';
-import { getSession } from '@/modules/auth';
+import { getContainer, getSession } from '@/composition/container';
 import { setNote } from '@/modules/notes';
 
 export async function setNoteAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {

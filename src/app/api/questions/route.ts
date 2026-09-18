@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { getContainer } from '@/composition/container';
-import { getSession } from '@/modules/auth';
+import { getContainer, getSession } from '@/composition/container';
 import {
   searchQuestions,
   createQuestion,

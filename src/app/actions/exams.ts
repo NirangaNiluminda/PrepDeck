@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { getContainer, type Container } from '@/composition/container';
-import { getSession } from '@/modules/auth';
+import { getContainer, getSession, type Container } from '@/composition/container';
 import {
   recordExamAnswer,
   selfGradeExamAnswer,

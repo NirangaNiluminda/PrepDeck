@@ -1,8 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getContainer } from '@/composition/container';
-import { getSession } from '@/modules/auth';
+import { getContainer, getSession } from '@/composition/container';
 import { recordAttempt } from '@/modules/practice';
 
 export interface RecordAttemptPayload {

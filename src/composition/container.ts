@@ -35,7 +35,9 @@ import {
   type UserProfileDocument,
   type UserProfileRepository,
 } from '@/modules/users';
+import { DevAuthProvider, type AuthProvider, type Session } from '@/modules/auth';
 import { getDb } from './mongo-client';
+import { NextAuthAuthProvider } from './next-auth-provider';
 
 /**
  * The composition root: the one place that knows which concrete adapter backs
@@ -50,12 +52,18 @@ export interface Container {
   readonly notes: NoteRepository;
   readonly examSessions: ExamSessionRepository;
   readonly profiles: UserProfileRepository;
+  readonly auth: AuthProvider;
   readonly scheduler: ReviewScheduler;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 }
 
 let cached: Container | undefined;
+
+// GitHub OAuth is opt-in: without both set, the dev provider (DEV_USER_ID /
+// DEV_USER_ROLE) keeps working exactly as before. See .env.example for the
+// full list this needs, including AUTH_SECRET.
+const hasGitHubAuth = Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
 
 export async function getContainer(): Promise<Container> {
   if (cached) return cached;
@@ -70,6 +78,7 @@ export async function getContainer(): Promise<Container> {
     notes: new MongoNoteRepository(db.collection<NoteDocument>('notes')),
     examSessions: new MongoExamSessionRepository(db.collection<ExamSessionDocument>('examSessions')),
     profiles: new MongoUserProfileRepository(db.collection<UserProfileDocument>('userProfiles')),
+    auth: hasGitHubAuth ? new NextAuthAuthProvider() : new DevAuthProvider(),
     scheduler: sm2Scheduler,
     clock: systemClock,
     ids: uuidGenerator,
@@ -80,3 +89,6 @@ export async function getContainer(): Promise<Container> {
 
 /** Tests build their own container from in-memory adapters — see tests/. */
 export const buildContainer = (overrides: Container): Container => overrides;
+
+/** The one place every route handler, server action and page reads identity from. */
+export const getSession = async (): Promise<Session | null> => (await getContainer()).auth.getSession();

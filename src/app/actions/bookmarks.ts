@@ -1,8 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getContainer } from '@/composition/container';
-import { getSession } from '@/modules/auth';
+import { getContainer, getSession } from '@/composition/container';
 import { setBookmark } from '@/modules/bookmarks';
 
 // Server actions are reachable by a direct POST, not just this app's UI, so

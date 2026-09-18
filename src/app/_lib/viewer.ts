@@ -1,5 +1,6 @@
 import { connection } from 'next/server';
-import { getSession, type Session } from '@/modules/auth';
+import { getSession } from '@/composition/container';
+import type { Session } from '@/modules/auth';
 
 /**
  * The dev auth adapter reads environment variables, not cookies, so nothing

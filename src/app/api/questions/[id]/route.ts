@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { getContainer } from '@/composition/container';
-import { getSession } from '@/modules/auth';
+import { getContainer, getSession } from '@/composition/container';
 import { getQuestion, publishQuestion } from '@/modules/questions';
 import { fail, respond } from '../http';
 
