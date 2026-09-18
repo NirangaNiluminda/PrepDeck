@@ -62,8 +62,10 @@ let cached: Container | undefined;
 
 // GitHub OAuth is opt-in: without both set, the dev provider (DEV_USER_ID /
 // DEV_USER_ROLE) keeps working exactly as before. See .env.example for the
-// full list this needs, including AUTH_SECRET.
-const hasGitHubAuth = Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
+// full list this needs, including AUTH_SECRET. Exported so the header knows
+// whether to show real Sign in / Sign out controls at all — the dev provider
+// isn't a real session, so there's nothing for those buttons to do under it.
+export const hasGitHubAuth = Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
 
 export async function getContainer(): Promise<Container> {
   if (cached) return cached;

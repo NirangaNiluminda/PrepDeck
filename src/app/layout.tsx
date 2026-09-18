@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
+import { hasGitHubAuth } from '@/composition/container';
+import { SignInButton, SignOutButton } from './_components/auth-buttons';
 import { getViewer } from './_lib/viewer';
 import './globals.css';
 
@@ -67,12 +69,19 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
                 </Link>
               )}
             </nav>
-            <span
-              className="ml-auto hidden truncate text-xs text-zinc-500 sm:inline dark:text-zinc-400"
-              title={viewer ? undefined : 'Development sign-in, from DEV_USER_ID and DEV_USER_ROLE in .env.local'}
-            >
-              {viewer ? `${viewer.name ?? viewer.userId} · ${viewer.role}` : 'Signed out'}
-            </span>
+            <div className="ml-auto flex items-center gap-3">
+              <span
+                className="hidden truncate text-xs text-zinc-500 sm:inline dark:text-zinc-400"
+                title={
+                  viewer && !hasGitHubAuth
+                    ? 'Development sign-in, from DEV_USER_ID and DEV_USER_ROLE in .env.local'
+                    : undefined
+                }
+              >
+                {viewer ? `${viewer.name ?? viewer.userId} · ${viewer.role}` : 'Signed out'}
+              </span>
+              {hasGitHubAuth && (viewer ? <SignOutButton /> : <SignInButton />)}
+            </div>
           </div>
         </header>
         <main className="flex flex-1 flex-col">{children}</main>
