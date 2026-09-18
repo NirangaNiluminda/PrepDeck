@@ -47,6 +47,12 @@ export interface ExamReviewQuestion {
   readonly flagged: boolean;
   /** Defined once gradable: always for MCQ, only after self-grading otherwise. */
   readonly correct?: boolean;
+  /**
+   * When this became "done" — an MCQ pick, or a self-grade. Self-grades
+   * happen in the untimed review phase, so only an MCQ's timestamp says
+   * anything real about time spent; the results page reads it that way.
+   */
+  readonly answeredAt?: string;
 }
 
 export interface ExamResultsView {
@@ -115,6 +121,7 @@ export function toResultsView(session: ExamSession): ExamResultsView {
         selfGradedCorrect: answer?.selfGradedCorrect,
         flagged: answer?.flagged ?? false,
         correct,
+        answeredAt: answer?.answeredAt?.toISOString(),
       };
     }),
   };

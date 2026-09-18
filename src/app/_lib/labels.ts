@@ -62,3 +62,17 @@ export const formatInterval = (days: number): string => {
   if (days < 365) return `${Math.round(days / 30)}mo`;
   return `${Math.round(days / 365)}y`;
 };
+
+export const EXAM_STATUS_LABELS: Record<string, string> = {
+  'in-progress': 'In progress',
+  'awaiting-review': 'Awaiting your review',
+  graded: 'Graded',
+};
+
+/** Milliseconds as m:ss for exam time-per-question and elapsed time. */
+export const formatDuration = (ms: number): string => {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+};

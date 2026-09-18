@@ -53,6 +53,9 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
                   <Link href="/progress" className={NAV_LINK}>
                     Progress
                   </Link>
+                  <Link href="/exams" className={NAV_LINK}>
+                    Exams
+                  </Link>
                 </>
               )}
               {viewer?.role === 'admin' && (
