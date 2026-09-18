@@ -67,6 +67,8 @@ Real accounts, via GitHub OAuth, turn on automatically once `AUTH_GITHUB_ID` /
 `AUTH_GITHUB_SECRET` / `AUTH_SECRET` are set — see `.env.example` for the exact
 GitHub OAuth App setup steps. `ADMIN_GITHUB_LOGINS` (comma-separated GitHub
 usernames) decides who signs in as admin; everyone else becomes a plain user.
+A Sign in / Sign out button appears in the header once those are set —
+nothing to click under the dev provider, since there's no real session there.
 
 ## Scripts
 
