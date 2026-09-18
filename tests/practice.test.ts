@@ -192,6 +192,43 @@ describe('getDueQueue', () => {
     expect(queue).toHaveLength(1);
     expect(queue[0].question.topicPath).toBe('devops/ci-cd');
   });
+
+  it('biases new material toward a preferred difficulty, without affecting due cards', async () => {
+    const easyId = await seedPublished(d, { stem: 'An easy question about HTTP verbs.', difficulty: 'easy' });
+    await seedPublished(d, { stem: 'A hard question about consensus algorithms.', difficulty: 'hard' });
+    await recordAttempt({ userId: 'u1', questionId: easyId, rating: 'hard', timeTakenMs: 0 }, d); // due in 3 days, still "easy"
+    d.clock.advanceDays(3);
+
+    const queue = await getDueQueue(
+      { userId: 'u1', now: d.clock.now(), newCardCap: 10, limit: 10, preferredDifficulty: 'hard' },
+      d,
+    );
+
+    // The easy card is due and comes back regardless of preference; only the
+    // *new* pool — the hard question — is filtered by it.
+    expect(queue.map((c) => c.question.difficulty).sort()).toEqual(['easy', 'hard']);
+  });
+
+  it("draws the daily new-card cap's boundary in the user's own timezone, not UTC", async () => {
+    const q1 = await seedPublished(d, { stem: 'The question each user reviews earlier in the day.' });
+    await seedPublished(d, { stem: 'A second question, available to introduce as new.' });
+
+    // 10:00 UTC on the 15th is 15:30 on the 15th in Colombo (UTC+5:30) — the
+    // same calendar day there too, just later. Reviewing here uses up one
+    // slot of a newCardCap: 1 budget for whichever zone counts it as "today".
+    for (const userId of ['utc-user', 'colombo-user']) {
+      await recordAttempt({ userId, questionId: q1, rating: 'good', timeTakenMs: 0 }, { ...d, clock: { now: () => new Date('2026-01-15T10:00:00Z') } });
+    }
+
+    // By 22:00 UTC the same day, it's already 03:30 on the 16th in Colombo —
+    // the review above now falls on *yesterday* there, freeing the slot.
+    const now = new Date('2026-01-15T22:00:00Z');
+    const utcQueue = await getDueQueue({ userId: 'utc-user', now, newCardCap: 1, limit: 10, timezone: 'UTC' }, d);
+    const colomboQueue = await getDueQueue({ userId: 'colombo-user', now, newCardCap: 1, limit: 10, timezone: 'Asia/Colombo' }, d);
+
+    expect(utcQueue).toHaveLength(0); // budget already spent today, UTC
+    expect(colomboQueue).toHaveLength(1); // that review was "yesterday" in Colombo — budget is free again
+  });
 });
 
 describe('getProgress', () => {

@@ -6,6 +6,7 @@ import {
   buildTopicMastery,
   questionMastery,
   sm2Scheduler,
+  startOfDayInTimezone,
   weakestTopics,
   type Rating,
 } from '@/modules/practice';
@@ -179,5 +180,34 @@ describe('weakestTopics', () => {
     ]);
 
     expect(weakestTopics(tree, { minReviewed: 1, limit: 2 })).toHaveLength(2);
+  });
+});
+
+describe('startOfDayInTimezone', () => {
+  it('matches plain UTC midnight when the zone is UTC', () => {
+    const start = startOfDayInTimezone(new Date('2026-01-15T14:23:45Z'), 'UTC');
+
+    expect(start.toISOString()).toBe('2026-01-15T00:00:00.000Z');
+  });
+
+  it('finds midnight in a zone ahead of UTC, which can fall on the previous UTC day', () => {
+    // 20:00 UTC is already 01:30 the next day in Colombo (UTC+5:30, no DST).
+    const start = startOfDayInTimezone(new Date('2026-01-15T20:00:00Z'), 'Asia/Colombo');
+
+    expect(start.toISOString()).toBe('2026-01-15T18:30:00.000Z'); // 2026-01-16T00:00 Colombo time
+  });
+
+  it('finds midnight in a zone behind UTC, which can fall on the next UTC day', () => {
+    // 03:00 UTC is still 19:00 the previous day in Los Angeles (UTC-8 in January).
+    const start = startOfDayInTimezone(new Date('2026-01-15T03:00:00Z'), 'America/Los_Angeles');
+
+    expect(start.toISOString()).toBe('2026-01-14T08:00:00.000Z'); // 2026-01-14T00:00 Los Angeles time
+  });
+
+  it('is a pure function of its inputs', () => {
+    const a = startOfDayInTimezone(new Date('2026-06-01T12:00:00Z'), 'Asia/Colombo');
+    const b = startOfDayInTimezone(new Date('2026-06-01T12:00:00Z'), 'Asia/Colombo');
+
+    expect(a).toEqual(b);
   });
 });

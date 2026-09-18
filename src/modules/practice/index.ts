@@ -21,6 +21,7 @@ export type { Rating } from './domain/rating';
 export { questionMastery, buildTopicMastery, weakestTopics } from './domain/mastery';
 export type { TopicMastery } from './domain/mastery';
 export { sm2Scheduler, EASE_DEFAULT, EASE_MIN, NEW_REVIEW_STATE } from './domain/scheduler';
+export { startOfDayInTimezone } from './domain/day-boundary';
 
 // Adapters — exported for the composition root and tests only.
 export { InMemoryReviewCardRepository } from './adapters/in-memory/in-memory-review-card-repository';

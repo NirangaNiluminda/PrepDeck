@@ -1,4 +1,5 @@
-import { getQuestion, searchQuestions, type QuestionRepository } from '@/modules/questions';
+import { getQuestion, searchQuestions, type Difficulty, type QuestionRepository } from '@/modules/questions';
+import { startOfDayInTimezone } from '../domain/day-boundary';
 import { RATINGS, type Rating } from '../domain/rating';
 import { NEW_REVIEW_STATE } from '../domain/scheduler';
 import type { DueCard } from '../ports/dto';
@@ -13,6 +14,10 @@ export interface GetDueQueueInput {
   readonly limit: number;
   /** Restricts to a topic and its descendants — how a weak-area suggestion becomes a session. */
   readonly topicPath?: string;
+  /** IANA zone the new-card cap's "today" is drawn in. Defaults to UTC. Due cards are unaffected — what's due is due regardless of preference. */
+  readonly timezone?: string;
+  /** Biases new material toward one difficulty. Due cards are unaffected — reviewing what's due isn't optional. */
+  readonly preferredDifficulty?: Difficulty;
 }
 
 export interface GetDueQueueDeps {
@@ -20,8 +25,6 @@ export interface GetDueQueueDeps {
   readonly questions: QuestionRepository;
   readonly scheduler: ReviewScheduler;
 }
-
-const startOfUtcDay = (date: Date): Date => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 
 const isUnderTopic = (topicPath: string, filter: string | undefined): boolean =>
   !filter || topicPath === filter || topicPath.startsWith(`${filter}/`);
@@ -40,7 +43,7 @@ const previewIntervals = (state: ReviewState, scheduler: ReviewScheduler, now: D
  * the free-text regex search elsewhere in the codebase already makes.
  */
 export async function getDueQueue(input: GetDueQueueInput, deps: GetDueQueueDeps): Promise<DueCard[]> {
-  const dayStart = startOfUtcDay(input.now);
+  const dayStart = startOfDayInTimezone(input.now, input.timezone ?? 'UTC');
   const seen = await deps.reviewCards.listMasteryInputs(input.userId);
   const seenIds = new Set(seen.map((s) => s.questionId));
 
@@ -74,6 +77,7 @@ export async function getDueQueue(input: GetDueQueueInput, deps: GetDueQueueDeps
     const page = await searchQuestions(
       {
         topicPath: input.topicPath,
+        difficulties: input.preferredDifficulty ? [input.preferredDifficulty] : undefined,
         excludeIds: [...seenIds],
         sort: 'oldest',
         page: { limit: Math.min(remaining, newBudget), offset: 0 },
