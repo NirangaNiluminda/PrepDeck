@@ -11,8 +11,10 @@ import type { AuthProvider, Session } from '@/modules/auth';
 export class NextAuthAuthProvider implements AuthProvider {
   async getSession(): Promise<Session | null> {
     const session = await auth();
-    const userId = (session as { userId?: string } | null)?.userId;
-    const role = (session as { role?: 'user' | 'admin' } | null)?.role;
-    return userId && role ? { userId, role } : null;
+    const withRole = session as { userId?: string; role?: 'user' | 'admin'; user?: { name?: string | null } } | null;
+    const { userId, role } = withRole ?? {};
+    if (!userId || !role) return null;
+    // Already in the JWT from the GitHub profile at sign-in — no extra lookup.
+    return { userId, role, name: withRole?.user?.name ?? undefined };
   }
 }

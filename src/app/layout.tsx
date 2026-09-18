@@ -56,6 +56,9 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
                   <Link href="/exams" className={NAV_LINK}>
                     Exams
                   </Link>
+                  <Link href="/settings" className={NAV_LINK}>
+                    Settings
+                  </Link>
                 </>
               )}
               {viewer?.role === 'admin' && (
@@ -66,9 +69,9 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
             </nav>
             <span
               className="ml-auto hidden truncate text-xs text-zinc-500 sm:inline dark:text-zinc-400"
-              title="Development sign-in, from DEV_USER_ID and DEV_USER_ROLE in .env.local"
+              title={viewer ? undefined : 'Development sign-in, from DEV_USER_ID and DEV_USER_ROLE in .env.local'}
             >
-              {viewer ? `${viewer.userId} · ${viewer.role}` : 'Signed out'}
+              {viewer ? `${viewer.name ?? viewer.userId} · ${viewer.role}` : 'Signed out'}
             </span>
           </div>
         </header>

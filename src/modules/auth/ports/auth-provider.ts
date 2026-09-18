@@ -3,6 +3,8 @@ export type Role = 'user' | 'admin';
 export interface Session {
   readonly userId: string;
   readonly role: Role;
+  /** Display name only — never used for identity or lookups, just what the header shows. */
+  readonly name?: string;
 }
 
 /**
