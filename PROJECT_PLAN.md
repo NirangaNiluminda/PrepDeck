@@ -238,12 +238,41 @@ judge it against.
 
 ### Stage 4 — Multi-user (2 days)
 
-- [ ] Real accounts, roles (`user | contributor | moderator | admin`)
-- [ ] **Audit every existing query for missing `userId` scoping before shipping
+- [x] Real accounts, roles (`user | contributor | moderator | admin`)
+      — *shipped `user | admin` only. `contributor`/`moderator` are Stage 5
+      concepts (community moderation) with nothing to attach to yet; adding
+      them now would be two states nothing reads. Real accounts are NextAuth
+      + GitHub, behind the same `AuthProvider` port the dev stand-in already
+      used, chosen in `composition/container.ts` when `AUTH_GITHUB_ID` /
+      `AUTH_GITHUB_SECRET` are set — unset, the dev provider keeps working
+      exactly as before. Role is decided once at sign-in from
+      `ADMIN_GITHUB_LOGINS` and baked into the session; there is no path to
+      admin beyond that allowlist, and no per-request database read for it.
+      Needs a real GitHub OAuth App to actually exercise — see `.env.example`
+      for the exact steps — which this environment doesn't have, so the OAuth
+      handshake itself is unverified; everything around it (`next build`, the
+      dev-auth path, NextAuth's own routes failing safely without secrets) is.*
+- [x] **Audit every existing query for missing `userId` scoping before shipping
       this.** Attempts, bookmarks, notes, review cards, exam sessions.
-- [ ] Onboarding questionnaire → target role, experience level, weak areas
-- [ ] Personalised starter packs derived from onboarding answers
-- [ ] Per-user settings: daily card cap, preferred difficulty, timezone
+      — *done: every repository method takes `userId` explicitly, every
+      client-supplied identity is rejected in favour of the session's, and
+      `tests/user-isolation.test.ts` is the permanent version of this check
+      the risk register below asks for — two users, one shared question,
+      asserts neither ever sees the other's data.*
+- [x] Onboarding questionnaire → target role, experience level, weak areas
+      — *"weak areas" dropped from the questionnaire itself: there's nothing
+      to self-report yet on a first sign-in, before any review history
+      exists. Weak-area detection already exists and runs off real data —
+      `practice`'s `getWeakAreas`, on `/progress` since Stage 2.*
+- [x] Personalised starter packs derived from onboarding answers
+      — *one topic-root suggestion based on target role, not a curated
+      multi-topic pack — see `app/_lib/onboarding-labels.ts`'s own note on
+      why that's enough at this corpus size.*
+- [x] Per-user settings: daily card cap, preferred difficulty, timezone
+      — *timezone governs only the daily new-card cap's day boundary
+      (`practice/domain/day-boundary.ts`), not the practice streak's day
+      bucketing, which still runs on UTC calendar days — a smaller,
+      lower-stakes inconsistency than the cap itself using the wrong "today."*
 
 ### Stage 5 — Community (4–5 days)
 
@@ -340,7 +369,7 @@ runs on it. Terraform is declarative state; Ansible is procedural automation.
 | Corpus never gets imported | Build the importer in Stage 1, not Stage 6. Import 20 questions on day one to prove the pipeline. |
 | Spaced repetition built but unused | Ship Stage 1 and use it for a full week first. If browsing alone is enough, Stage 2 can wait. |
 | Community opened before moderation is ready | Stage 5 ships moderation queue, duplicate detection and rate limiting together or not at all. |
-| Multi-tenancy bugs leak data between friends | Stage 4 begins with an audit of every query for `userId` scoping. Add an integration test that seeds two users and asserts isolation. |
+| Multi-tenancy bugs leak data between friends | Stage 4 begins with an audit of every query for `userId` scoping. Add an integration test that seeds two users and asserts isolation. — *Done: `tests/user-isolation.test.ts`.* |
 | Free-tier Mongo connection exhaustion | `globalThis` client cache is already in `composition/mongo-client.ts`. Keep `maxPoolSize` at 10. |
 
 ---

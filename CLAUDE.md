@@ -50,8 +50,10 @@ src/
     importer/      markdown question files → import items (structure only)
     practice/      Attempt, ReviewCard, SM-2 scheduler, due queue, mastery
     exams/         ExamSession (snapshotted questions), scoring, results
-    auth/          getSession() behind an AuthProvider port
-    community/  users/     ← not built yet
+    users/         UserProfile: onboarding answers + settings (no role — see auth/)
+    auth/          DevAuthProvider, identity resolution; NextAuthAuthProvider
+                    lives in composition/ instead — see that module's index.ts
+    community/     ← not built yet
   composition/     container.ts — the only place adapters are wired
   app/             Next.js routes — thin
     _components/   UI pieces; _lib/ presentation helpers; actions/ server actions
@@ -147,7 +149,7 @@ passes ~40 lines, extract a domain service.
 
 ## Current state
 
-**Stages 1, 2 and 3 are built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
+**Stages 1 through 4 are built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
 
 - `questions`: slugs, create / update / publish / archive / restore, search
   with an `ids` filter and a `topicPaths` OR-filter (alongside the original
@@ -170,19 +172,41 @@ passes ~40 lines, extract a domain service.
   `getExamRunnerView`/`getExamResults` (two DTO types, not one with an
   optional field — see `ports/dto.ts`), `listExamHistory`. Depends on
   `questions` only; the app layer composes it with `practice` (see rule 5).
-- `auth`: `getSession()` is a **dev stand-in** reading `DEV_USER_ID` /
-  `DEV_USER_ROLE`. NextAuth + GitHub is still to do, before Stage 4.
-- UI: browse (`/`), question detail with notes, admin create/edit, practice
-  (`/practice`), progress (`/progress`), and exams (`/exams`, `/exams/new`,
-  `/exams/[id]` — one adaptive route for building, running, self-grading and
-  results), all keyboard-driven.
+- `users`: `getOrCreateProfile` (lazy, default settings, no separate signup),
+  `completeOnboarding`, `updateUserSettings`. No role field — see `auth` below.
+- `auth`: identity is `Container.auth` (chosen in `composition/container.ts`),
+  not a module-owned singleton — `getSession()` now lives in
+  `composition/container.ts` alongside `getContainer()`. `DevAuthProvider`
+  (`DEV_USER_ID`/`DEV_USER_ROLE`) is the fallback whenever
+  `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET` aren't set; real accounts are NextAuth
+  + GitHub (`src/auth.ts`, `composition/next-auth-provider.ts`). Role is
+  decided once at sign-in from `ADMIN_GITHUB_LOGINS`, never re-read from a
+  database. `resolveUserId` mints our own UUID per external account, same
+  discipline as Mongo's ObjectId never escaping.
+- UI: browse (`/`), question detail with notes, admin create/edit, onboarding
+  (`/onboarding`), settings (`/settings`), practice (`/practice`, now reading
+  the signed-in user's actual settings instead of a hardcoded cap), progress
+  (`/progress`), and exams (`/exams`, `/exams/new`, `/exams/[id]` — one
+  adaptive route for building, running, self-grading and results), all
+  keyboard-driven.
 - Atlas `interview_prep` holds the 28 `starter-seed` questions, published.
 
-Stages 2 and 3 followed Stage 1 the same day rather than after a week of real
-usage (the plan's suggested pacing) — at the user's explicit request. The
+Stages 2 through 4 followed Stage 1 the same day rather than after a week of
+real usage (the plan's suggested pacing) — at the user's explicit request. The
 starter questions should still be rewritten or replaced with the real
 transcript corpus; mastery numbers, the due-card cap and exam scoring are all
-unvalidated against real use.
+unvalidated against real use. The GitHub OAuth flow itself is unverified —
+this environment has no GitHub OAuth App to test against; see `.env.example`
+for what the user needs to set up to turn it on.
+
+**A `<select defaultValue={...}>` doesn't pick up a new value from a later
+render once it's mounted**, even after `state.values` (or similar) changes —
+found twice while building this stage (`question-form.tsx`'s Difficulty,
+`settings-form.tsx`'s two selects). A plain `<input>`/`<textarea>` with
+`defaultValue` doesn't have this problem, only `<select>` does. Fix: `key={the
+value it should show}` on the `<select>` itself, forcing a remount with the
+new value as its fresh default — not on the whole form, which would also
+reset unrelated fields' cursor position/focus for no reason.
 
 Pages call `getViewer()` (from `app/_lib/viewer.ts`), which calls
 `connection()`: the dev auth adapter reads env vars rather than cookies, so

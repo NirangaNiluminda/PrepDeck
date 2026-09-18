@@ -3,8 +3,9 @@
 A filterable, practisable knowledge base of technical interview questions —
 built to replace revising from long, unsearchable chat transcripts.
 
-Spaced repetition and timed mock exams are here; community contributions come
-later — see [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the staged roadmap.
+Spaced repetition, timed mock exams and real accounts are here; community
+contributions come later — see [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the
+staged roadmap.
 
 ## Stack
 
@@ -36,6 +37,8 @@ Then open http://localhost:3000.
 | `/exams/new` | Build a timed mock exam: topics, difficulty, type, question count, duration. |
 | `/exams/[id]` | One URL for the whole exam: the timed runner, then self-grading anything that isn't multiple choice, then results — whichever is true right now. |
 | `/exams` | Your past exams and scores. |
+| `/onboarding` | Two questions (target role, experience level) shown once, to point Practice at a starting topic. |
+| `/settings` | Daily new-card cap, preferred difficulty, timezone. |
 | `/?bookmarked=1` | Your starred questions. |
 | `/admin/questions/new` | Write a question (admins). Edit, publish, archive and restore from the question page. |
 
@@ -54,9 +57,16 @@ npm run import-questions -- --publish      # write it
 Re-importing is safe: files are matched to questions by slug (the file name), so
 an edited file updates its question and an unchanged file is skipped.
 
-Auth is a Stage 0 stand-in: `DEV_USER_ID` / `DEV_USER_ROLE` in `.env.local` are
-read by `DevAuthProvider` behind the `AuthProvider` port. Unset `DEV_USER_ID` to
-exercise the signed-out path. Real accounts arrive in Stage 4.
+## Auth
+
+`DEV_USER_ID` / `DEV_USER_ROLE` in `.env.local` sign you in as a fixed dev user
+— unset `DEV_USER_ID` to exercise the signed-out path. This is the default and
+needs nothing further.
+
+Real accounts, via GitHub OAuth, turn on automatically once `AUTH_GITHUB_ID` /
+`AUTH_GITHUB_SECRET` / `AUTH_SECRET` are set — see `.env.example` for the exact
+GitHub OAuth App setup steps. `ADMIN_GITHUB_LOGINS` (comma-separated GitHub
+usernames) decides who signs in as admin; everyone else becomes a plain user.
 
 ## Scripts
 
@@ -103,7 +113,8 @@ src/
     importer/      markdown files → questions
     practice/      Attempt, ReviewCard, SM-2 scheduler, due queue, mastery
     exams/         ExamSession (snapshotted questions), scoring, results
-    auth/          dev sign-in behind an AuthProvider port
+    users/         onboarding answers + per-user settings
+    auth/          identity, behind an AuthProvider port (dev, or NextAuth + GitHub)
   composition/     the only place adapters are wired
   app/             Next.js pages, server actions and API routes — thin
 content/questions/ the question corpus
