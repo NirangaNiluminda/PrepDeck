@@ -27,6 +27,8 @@ export type {
   ImportOutcome,
   ImportReport,
 } from './use-cases/import-questions';
+export { sampleQuestions } from './use-cases/sample-questions';
+export type { SampleQuestionsInput } from './use-cases/sample-questions';
 
 // Contracts other modules legitimately need.
 export type {

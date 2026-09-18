@@ -112,6 +112,9 @@ export class InMemoryQuestionRepository implements QuestionRepository {
       const parsed = TopicPath.create(filter.topicPath);
       if (parsed.ok) ancestor = parsed.value;
     }
+    const anyAncestor = filter.topicPaths?.length
+      ? filter.topicPaths.map((t) => TopicPath.create(t)).flatMap((r) => (r.ok ? [r.value] : []))
+      : null;
     const needle = filter.text?.trim().toLowerCase();
     const included = filter.ids ? new Set(filter.ids) : null;
     const excluded = new Set(filter.excludeIds ?? []);
@@ -120,6 +123,7 @@ export class InMemoryQuestionRepository implements QuestionRepository {
       if (included && !included.has(q.id)) return false;
       if (excluded.has(q.id)) return false;
       if (ancestor && !q.topicPath.isUnder(ancestor)) return false;
+      if (anyAncestor && !anyAncestor.some((a) => q.topicPath.isUnder(a))) return false;
       if (filter.difficulties?.length && !filter.difficulties.includes(q.difficulty)) return false;
       if (filter.types?.length && !filter.types.includes(q.type)) return false;
       if (filter.statuses?.length && !filter.statuses.includes(q.status)) return false;

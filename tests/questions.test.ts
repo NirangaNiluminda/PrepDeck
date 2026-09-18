@@ -11,6 +11,7 @@ import {
   restoreQuestion,
   listQuestionFacets,
   importQuestions,
+  sampleQuestions,
   type ImportQuestionItem,
 } from '@/modules/questions';
 
@@ -560,5 +561,62 @@ describe('searchQuestions (ids and difficulty sort)', () => {
     const page = await searchQuestions({ sort: 'hardest', viewerIsAdmin: true }, d);
 
     expect(page.items.map((q) => q.difficulty)).toEqual(['hard', 'medium', 'easy']);
+  });
+
+  it('topicPaths matches any of several topics, as an OR', async () => {
+    const d = deps();
+    await createQuestion(validInput({ topicPath: 'devops/docker' }), d);
+    await createQuestion(validInput({ stem: 'Explain the CAP theorem and why it matters.', topicPath: 'databases/distributed' }), d);
+    await createQuestion(validInput({ stem: 'What is a race condition in concurrent code?', topicPath: 'security/web' }), d);
+
+    const page = await searchQuestions(
+      { topicPaths: ['devops', 'databases'], viewerIsAdmin: true },
+      d,
+    );
+
+    expect(page.items.map((q) => q.topicPath).sort()).toEqual(['databases/distributed', 'devops/docker']);
+  });
+});
+
+describe('sampleQuestions', () => {
+  it('draws only from published questions, regardless of what a viewer could otherwise see', async () => {
+    const d = deps();
+    const draft = await createQuestion(validInput(), d);
+    if (!draft.ok) throw new Error(draft.error.message);
+    await createQuestion(validInput({ stem: 'A second, published question about Docker.' }), d).then((r) => {
+      if (!r.ok) throw new Error(r.error.message);
+      return publishQuestion({ id: r.value.id, moderatorId: 'admin', moderatorIsAdmin: true }, d);
+    });
+
+    const drawn = await sampleQuestions({ size: 10 }, d);
+
+    expect(drawn).toHaveLength(1);
+    expect(drawn[0].status).toBe('published');
+    expect(drawn.some((q) => q.id === draft.value.id)).toBe(false);
+  });
+
+  it('includes the answer, unlike a search result', async () => {
+    const d = deps();
+    const created = await createQuestion(validInput(), d);
+    if (!created.ok) throw new Error(created.error.message);
+    await publishQuestion({ id: created.value.id, moderatorId: 'admin', moderatorIsAdmin: true }, d);
+
+    const drawn = await sampleQuestions({ size: 10 }, d);
+
+    expect(drawn[0].answer?.modelAnswer).toBeTruthy();
+  });
+
+  it('respects a topic filter', async () => {
+    const d = deps();
+    for (const topicPath of ['devops/docker', 'databases/indexing']) {
+      const created = await createQuestion(validInput({ stem: `A published question about ${topicPath}.`, topicPath }), d);
+      if (!created.ok) throw new Error(created.error.message);
+      await publishQuestion({ id: created.value.id, moderatorId: 'admin', moderatorIsAdmin: true }, d);
+    }
+
+    const drawn = await sampleQuestions({ size: 10, topicPath: 'devops' }, d);
+
+    expect(drawn).toHaveLength(1);
+    expect(drawn[0].topicPath).toBe('devops/docker');
   });
 });

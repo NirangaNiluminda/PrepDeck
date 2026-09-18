@@ -17,6 +17,8 @@ import type { Difficulty } from '../domain/difficulty';
 export interface QuestionFilter {
   /** Matches the topic and all its descendants. */
   readonly topicPath?: string;
+  /** Matches any of these topics (and their descendants) — an OR, for "devops or security". Combines with `topicPath` as AND if both are set. */
+  readonly topicPaths?: readonly string[];
   readonly difficulties?: readonly Difficulty[];
   readonly types?: readonly QuestionType[];
   /** AND semantics: a question must carry every tag listed. */

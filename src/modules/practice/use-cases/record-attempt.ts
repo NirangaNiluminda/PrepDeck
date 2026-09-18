@@ -12,6 +12,8 @@ export interface RecordAttemptInput {
   readonly rating: string;
   readonly correct?: boolean;
   readonly timeTakenMs: number;
+  /** Set when this attempt happened inside a timed exam. The exams module never calls this directly — see its own module comment. */
+  readonly examSessionId?: string;
 }
 
 export interface RecordAttemptResult {
@@ -50,6 +52,7 @@ export async function recordAttempt(
     rating: input.rating,
     correct: input.correct,
     timeTakenMs: input.timeTakenMs,
+    examSessionId: input.examSessionId,
     now,
   });
   if (!attempt.ok) return attempt;

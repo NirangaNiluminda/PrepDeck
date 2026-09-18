@@ -130,9 +130,15 @@ export class MongoQuestionRepository implements QuestionRepository {
     if (filter.topicPath) {
       const parsed = TopicPath.create(filter.topicPath);
       if (parsed.ok) {
-        const path = parsed.value.value;
         // Matches the topic itself and every descendant.
-        query.topicPath = { $regex: `^${escapeRegex(path)}(/|$)` };
+        query.topicPath = { $regex: `^${escapeRegex(parsed.value.value)}(/|$)` };
+      }
+    }
+    if (filter.topicPaths?.length) {
+      const parsed = filter.topicPaths.map((t) => TopicPath.create(t)).flatMap((r) => (r.ok ? [r.value.value] : []));
+      if (parsed.length) {
+        // An OR of the same "itself or a descendant" pattern used above.
+        query.$or = parsed.map((path) => ({ topicPath: { $regex: `^${escapeRegex(path)}(/|$)` } }));
       }
     }
     if (filter.difficulties?.length) query.difficulty = { $in: [...filter.difficulties] };
