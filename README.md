@@ -3,7 +3,7 @@
 A filterable, practisable knowledge base of technical interview questions —
 built to replace revising from long, unsearchable chat transcripts.
 
-Spaced repetition is here; timed mock exams and community contributions come
+Spaced repetition and timed mock exams are here; community contributions come
 later — see [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the staged roadmap.
 
 ## Stack
@@ -33,6 +33,9 @@ Then open http://localhost:3000.
 | `/questions/[id]` | One question, with a private notes box. `Space` reveals the answer, `Esc` goes back to the results. |
 | `/practice` | The review session: due cards, then new ones up to a daily cap. `Space` reveals, `1`–`4` rate again/hard/good/easy. |
 | `/progress` | Streak, cards due, mastery by topic, and weakest topics with a one-click link into a session on just that topic. |
+| `/exams/new` | Build a timed mock exam: topics, difficulty, type, question count, duration. |
+| `/exams/[id]` | One URL for the whole exam: the timed runner, then self-grading anything that isn't multiple choice, then results — whichever is true right now. |
+| `/exams` | Your past exams and scores. |
 | `/?bookmarked=1` | Your starred questions. |
 | `/admin/questions/new` | Write a question (admins). Edit, publish, archive and restore from the question page. |
 
@@ -99,6 +102,7 @@ src/
     notes/         per-user private notes on a question
     importer/      markdown files → questions
     practice/      Attempt, ReviewCard, SM-2 scheduler, due queue, mastery
+    exams/         ExamSession (snapshotted questions), scoring, results
     auth/          dev sign-in behind an AuthProvider port
   composition/     the only place adapters are wired
   app/             Next.js pages, server actions and API routes — thin

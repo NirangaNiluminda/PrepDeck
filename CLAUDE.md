@@ -49,8 +49,9 @@ src/
     notes/         per-user private notes on a question, same shape
     importer/      markdown question files → import items (structure only)
     practice/      Attempt, ReviewCard, SM-2 scheduler, due queue, mastery
+    exams/         ExamSession (snapshotted questions), scoring, results
     auth/          getSession() behind an AuthProvider port
-    exams/  community/  users/     ← not built yet
+    community/  users/     ← not built yet
   composition/     container.ts — the only place adapters are wired
   app/             Next.js routes — thin
     _components/   UI pieces; _lib/ presentation helpers; actions/ server actions
@@ -81,7 +82,13 @@ only. `adapters` and `app` import inward, never outward.
 4. **Use cases are plain functions**: `(input, deps) => Promise<Result<T>>`.
    No classes, no constructors, no `IUseCase<TIn,TOut>`.
 5. **Cross-module imports go through `index.ts` only.** Never
-   `@/modules/practice/domain/attempt`. Enforced by ESLint.
+   `@/modules/practice/domain/attempt`. Enforced by ESLint. This includes
+   sibling modules: a module never imports another module's use cases either,
+   unless the module map in `PROJECT_PLAN.md` says it depends on it (e.g.
+   `practice`/`exams` on `questions`). Two modules that both matter to the
+   same feature (an exam answer is also practice recall evidence) are
+   composed in the app layer — a server action calling both modules' public
+   APIs — never by one importing the other. See `exams/index.ts`'s comment.
 6. **Route handlers do four things**: parse+validate (Zod), read identity from
    the session, call one use case, map `Result` to HTTP. No business logic, no
    DB access.
@@ -140,29 +147,42 @@ passes ~40 lines, extract a domain service.
 
 ## Current state
 
-**Stages 1 and 2 are built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
+**Stages 1, 2 and 3 are built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
 
 - `questions`: slugs, create / update / publish / archive / restore, search
-  with an `ids` filter, facets (topic tree + tag counts), and `importQuestions`,
-  which upserts by slug with a dry run and field-level diffs.
+  with an `ids` filter and a `topicPaths` OR-filter (alongside the original
+  single-topic `topicPath` prefix match), facets (topic tree + tag counts),
+  `sampleQuestions` (published-only, for exams), and `importQuestions`, which
+  upserts by slug with a dry run and field-level diffs.
 - `importer`: parses `content/questions/**/*.md`; run it with
   `npm run import-questions -- [--dry-run] [--publish]`. `tests/content.test.ts`
   fails if any corpus file doesn't parse or import cleanly.
 - `bookmarks`, `notes`: per-user stars and private notes, same shape.
 - `practice`: `sm2Scheduler` (pure, behind the `ReviewScheduler` port),
   `getDueQueue` (due cards then new ones, capped per day, topic-filterable),
-  `recordAttempt`, `getProgress`/`getWeakAreas` (mastery is a heuristic off
-  each card's own interval and ease factor — see `domain/mastery.ts`).
+  `recordAttempt` (takes an optional `examSessionId`), `getProgress`/
+  `getWeakAreas` (mastery is a heuristic off each card's own interval and
+  ease factor — see `domain/mastery.ts`).
+- `exams`: `startExam` (snapshots questions at build time — editing a
+  question later never rewrites a past exam), `recordExamAnswer`/
+  `toggleExamFlag` (save immediately), `submitExam` (auto-scores MCQ, moves
+  to self-grading only if something else needs it), `selfGradeExamAnswer`,
+  `getExamRunnerView`/`getExamResults` (two DTO types, not one with an
+  optional field — see `ports/dto.ts`), `listExamHistory`. Depends on
+  `questions` only; the app layer composes it with `practice` (see rule 5).
 - `auth`: `getSession()` is a **dev stand-in** reading `DEV_USER_ID` /
   `DEV_USER_ROLE`. NextAuth + GitHub is still to do, before Stage 4.
 - UI: browse (`/`), question detail with notes, admin create/edit, practice
-  (`/practice`) and progress (`/progress`), all keyboard-driven.
+  (`/practice`), progress (`/progress`), and exams (`/exams`, `/exams/new`,
+  `/exams/[id]` — one adaptive route for building, running, self-grading and
+  results), all keyboard-driven.
 - Atlas `interview_prep` holds the 28 `starter-seed` questions, published.
 
-Stage 2 followed Stage 1 the same day rather than after a week of real usage
-(the plan's suggested pacing) — at the user's explicit request. The starter
-questions should still be rewritten or replaced with the real transcript
-corpus; mastery numbers and the due-card cap are unvalidated against real use.
+Stages 2 and 3 followed Stage 1 the same day rather than after a week of real
+usage (the plan's suggested pacing) — at the user's explicit request. The
+starter questions should still be rewritten or replaced with the real
+transcript corpus; mastery numbers, the due-card cap and exam scoring are all
+unvalidated against real use.
 
 Pages call `getViewer()` (from `app/_lib/viewer.ts`), which calls
 `connection()`: the dev auth adapter reads env vars rather than cookies, so

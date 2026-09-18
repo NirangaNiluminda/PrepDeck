@@ -196,15 +196,45 @@ judge it against.
 
 ### Stage 3 — Mock exams (2–3 days)
 
-- [ ] `exams` module: ExamSession with question snapshots
-- [ ] Exam builder: pick topics, count, duration, difficulty mix
-- [ ] Timed runner with countdown, question navigator, flag-for-review,
+- [x] `exams` module: ExamSession with question snapshots
+- [x] Exam builder: pick topics, count, duration, difficulty mix
+      — *"difficulty mix" built as a filter (tick which difficulties to
+      include), not a weighted count per level — e.g. not "3 easy, 5 medium,
+      2 hard" exactly. Topics support multiple selections (OR), which needed
+      a new `topicPaths` filter field alongside the existing single-topic one.*
+- [x] Timed runner with countdown, question navigator, flag-for-review,
       autosave every 15s to survive a refresh
-- [ ] Answers withheld during the exam (`?reveal=false` on the detail endpoint —
+      — *answers and flags save immediately on every interaction instead of
+      polling every 15s — strictly better for "survives a refresh" once the
+      decision below (no free-text capture) removed the one thing a 15s
+      batch would have been protecting. The countdown itself needs no
+      autosave at all: it's recomputed from the stored `startedAt` +
+      `durationMinutes` on every load, so a refresh already shows the true
+      remaining time.*
+- [x] Answers withheld during the exam (`?reveal=false` on the detail endpoint —
       already implemented in the scaffold)
-- [ ] Auto-scoring for MCQ; self-scoring against key points for short-answer
-- [ ] Results page: score, per-topic breakdown, time per question, review mode
-- [ ] Exam history with trend over time
+      — *not via that flag: an exam snapshots its own copy of each question,
+      and `ExamRunnerView` vs `ExamResultsView` are two different DTO types,
+      not one with an optional field — the correct answer can't be
+      constructed on the client while an exam is running, not just hidden
+      by it. See `exams/ports/dto.ts`.*
+- [x] Auto-scoring for MCQ; self-scoring against key points for short-answer
+      — *self-scoring covers every non-MCQ type (short-answer, flashcard,
+      code), and is a right/wrong judgment only — no free-text answer is
+      captured or stored, so nothing exists for an interviewer-in-training
+      to accidentally leak or lose. Every exam answer, MCQ or self-graded,
+      also becomes a practice Attempt (rating mapped from correctness),
+      feeding the same SM-2 schedule practice sessions do.*
+- [x] Results page: score, per-topic breakdown, time per question, review mode
+      — *"time per question" only for MCQ, computed from consecutive
+      answered-at timestamps during the timed portion; a self-graded
+      question has no equivalent real measurement (it's judged in the
+      untimed review phase) and is shown as such rather than a fabricated
+      number.*
+- [x] Exam history with trend over time
+      — *a sorted list of past exams and their scores, not a chart; the
+      trend is legible from the list at this volume, and PROJECT_PLAN.md's
+      own "what NOT to build" list is exactly this kind of restraint.*
 
 ### Stage 4 — Multi-user (2 days)
 
