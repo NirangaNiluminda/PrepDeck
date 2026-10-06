@@ -1,14 +1,17 @@
 import { MongoClient, type IndexDescription } from 'mongodb';
-import { QUESTION_INDEXES } from '@/modules/questions';
+import { QUESTION_INDEXES, QUESTION_REVISION_INDEXES } from '@/modules/questions';
 import { BOOKMARK_INDEXES } from '@/modules/bookmarks';
 import { ATTEMPT_INDEXES, REVIEW_CARD_INDEXES } from '@/modules/practice';
 import { NOTE_INDEXES } from '@/modules/notes';
 import { EXAM_SESSION_INDEXES } from '@/modules/exams';
 import { USER_PROFILE_INDEXES } from '@/modules/users';
 import { AUTH_IDENTITY_INDEXES } from '@/modules/auth';
+import { SUBMISSION_INDEXES, VOTE_INDEXES, REPORT_INDEXES } from '@/modules/community';
+import { RATE_LIMIT_INDEXES } from '@/composition/mongo-rate-limiter';
 
 const COLLECTIONS: Record<string, IndexDescription[]> = {
   questions: QUESTION_INDEXES,
+  questionRevisions: QUESTION_REVISION_INDEXES,
   bookmarks: BOOKMARK_INDEXES,
   reviewCards: REVIEW_CARD_INDEXES,
   attempts: ATTEMPT_INDEXES,
@@ -16,6 +19,10 @@ const COLLECTIONS: Record<string, IndexDescription[]> = {
   examSessions: EXAM_SESSION_INDEXES,
   userProfiles: USER_PROFILE_INDEXES,
   authIdentities: AUTH_IDENTITY_INDEXES,
+  submissions: SUBMISSION_INDEXES,
+  votes: VOTE_INDEXES,
+  reports: REPORT_INDEXES,
+  rateLimits: RATE_LIMIT_INDEXES,
 };
 
 /**

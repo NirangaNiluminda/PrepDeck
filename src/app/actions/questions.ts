@@ -8,6 +8,7 @@ import {
   createQuestion,
   publishQuestion,
   restoreQuestion,
+  revertQuestion,
   updateQuestion,
 } from '@/modules/questions';
 import { type QuestionFormState, readQuestionForm, toQuestionContent } from '../_lib/question-form';
@@ -47,7 +48,7 @@ export async function updateQuestionAction(
   if (!content.ok) return { error: content.error.message, values };
 
   const result = await updateQuestion(
-    { ...content.value, id, editorIsAdmin: session.role === 'admin' },
+    { ...content.value, id, editorId: session.userId, editorIsAdmin: session.role === 'admin' },
     await getContainer(),
   );
   if (!result.ok) return { error: result.error.message, values };
@@ -76,6 +77,28 @@ export async function archiveQuestionAction(formData: FormData): Promise<void> {
 export async function restoreQuestionAction(formData: FormData): Promise<void> {
   const { session, id } = await moderationRequest(formData);
   const result = await restoreQuestion({ id, moderatorIsAdmin: session.role === 'admin' }, await getContainer());
+  if (!result.ok) throw new Error(result.error.message);
+  revalidatePath('/', 'layout');
+}
+
+/**
+ * Takes `questionId`/`revisionId` as bound arguments
+ * (`revertQuestionAction.bind(null, questionId, revisionId)`) rather than
+ * reading them from hidden form fields. RevisionHistory renders one
+ * `<form>` per revision in a list — every form pointing at the same
+ * unbound action reference broke client hydration for the whole list
+ * silently (no console error) under this Next.js version, the same class of
+ * bug `resolveReportAction` hit with two buttons sharing one action. A
+ * distinct bound reference per form is what actually works.
+ */
+export async function revertQuestionAction(questionId: string, revisionId: string): Promise<void> {
+  const session = await getSession();
+  if (!session) throw new Error('Sign in to moderate questions');
+
+  const result = await revertQuestion(
+    { questionId, revisionId, editorId: session.userId, editorIsAdmin: session.role === 'admin' },
+    await getContainer(),
+  );
   if (!result.ok) throw new Error(result.error.message);
   revalidatePath('/', 'layout');
 }

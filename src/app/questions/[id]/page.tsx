@@ -6,6 +6,7 @@ import { getContainer } from '@/composition/container';
 import { listBookmarkedQuestionIds } from '@/modules/bookmarks';
 import { getQuestion } from '@/modules/questions';
 import { getNote } from '@/modules/notes';
+import { getVoteSummary } from '@/modules/community';
 import { AnswerBody } from '../../_components/answer-body';
 import { AnswerReveal } from '../../_components/answer-reveal';
 import { DifficultyBadge, Kbd, StatusBadge, TagLink, TopicTrail } from '../../_components/badges';
@@ -14,6 +15,8 @@ import { EscapeTo } from '../../_components/escape-to';
 import { InlineMarkdown, Markdown } from '../../_components/markdown';
 import { ModerationActions } from '../../_components/moderation-actions';
 import { NoteEditor } from '../../_components/note-editor';
+import { ReportButton } from '../../_components/report-button';
+import { VoteButtons } from '../../_components/vote-buttons';
 import { browseHref, parseBrowseParams } from '../../_lib/browse-params';
 import { TYPE_LABELS } from '../../_lib/labels';
 import { getViewer } from '../../_lib/viewer';
@@ -47,11 +50,12 @@ export default async function QuestionPage(props: PageProps<'/questions/[id]'>) 
   if (!question) notFound();
 
   const isAdmin = viewer?.role === 'admin';
-  const [bookmarked, note] = await Promise.all([
+  const [bookmarked, note, voteSummary] = await Promise.all([
     viewer
       ? listBookmarkedQuestionIds({ userId: viewer.userId }, container).then((ids) => ids.includes(question.id))
       : Promise.resolve(false),
     viewer ? getNote({ userId: viewer.userId, questionId: question.id }, container) : Promise.resolve(''),
+    getVoteSummary({ questionId: question.id, viewerId: viewer?.userId ?? null }, container),
   ]);
   const backHref = browseHref(parseBrowseParams(search));
 
@@ -66,6 +70,9 @@ export default async function QuestionPage(props: PageProps<'/questions/[id]'>) 
         </Link>
         <div className="flex items-center gap-2">
           {isAdmin && <ModerationActions id={question.id} status={question.status} />}
+          {viewer && (
+            <VoteButtons questionId={question.id} score={voteSummary.tally.score} viewerDirection={voteSummary.viewerDirection} />
+          )}
           {viewer && <BookmarkButton questionId={question.id} bookmarked={bookmarked} />}
         </div>
       </div>
@@ -100,6 +107,12 @@ export default async function QuestionPage(props: PageProps<'/questions/[id]'>) 
           {question.answer && <AnswerBody answer={question.answer} />}
         </AnswerReveal>
       </div>
+
+      {viewer && (
+        <div className="mt-6">
+          <ReportButton questionId={question.id} />
+        </div>
+      )}
 
       {viewer && (
         <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">

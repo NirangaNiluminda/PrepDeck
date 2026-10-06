@@ -1,9 +1,12 @@
 import { systemClock, uuidGenerator } from '@/shared/system-adapters';
-import type { Clock, IdGenerator } from '@/shared/ports';
+import type { Clock, IdGenerator, RateLimiter } from '@/shared/ports';
 import {
   MongoQuestionRepository,
+  MongoQuestionRevisionRepository,
   type QuestionRepository,
+  type QuestionRevisionRepository,
   type QuestionDocument,
+  type QuestionRevisionDocument,
 } from '@/modules/questions';
 import {
   MongoBookmarkRepository,
@@ -35,9 +38,21 @@ import {
   type UserProfileDocument,
   type UserProfileRepository,
 } from '@/modules/users';
+import {
+  MongoSubmissionRepository,
+  MongoVoteRepository,
+  MongoReportRepository,
+  type SubmissionDocument,
+  type SubmissionRepository,
+  type VoteDocument,
+  type VoteRepository,
+  type ReportDocument,
+  type ReportRepository,
+} from '@/modules/community';
 import { DevAuthProvider, type AuthProvider, type Session } from '@/modules/auth';
 import { getDb } from './mongo-client';
 import { NextAuthAuthProvider } from './next-auth-provider';
+import { MongoRateLimiter, type RateLimitDocument } from './mongo-rate-limiter';
 
 /**
  * The composition root: the one place that knows which concrete adapter backs
@@ -46,14 +61,19 @@ import { NextAuthAuthProvider } from './next-auth-provider';
  */
 export interface Container {
   readonly questions: QuestionRepository;
+  readonly revisions: QuestionRevisionRepository;
   readonly bookmarks: BookmarkRepository;
   readonly reviewCards: ReviewCardRepository;
   readonly attempts: AttemptRepository;
   readonly notes: NoteRepository;
   readonly examSessions: ExamSessionRepository;
   readonly profiles: UserProfileRepository;
+  readonly submissions: SubmissionRepository;
+  readonly votes: VoteRepository;
+  readonly reports: ReportRepository;
   readonly auth: AuthProvider;
   readonly scheduler: ReviewScheduler;
+  readonly rateLimiter: RateLimiter;
   readonly clock: Clock;
   readonly ids: IdGenerator;
 }
@@ -74,14 +94,19 @@ export async function getContainer(): Promise<Container> {
 
   cached = {
     questions: new MongoQuestionRepository(db.collection<QuestionDocument>('questions')),
+    revisions: new MongoQuestionRevisionRepository(db.collection<QuestionRevisionDocument>('questionRevisions')),
     bookmarks: new MongoBookmarkRepository(db.collection<BookmarkDocument>('bookmarks')),
     reviewCards: new MongoReviewCardRepository(db.collection<ReviewCardDocument>('reviewCards')),
     attempts: new MongoAttemptRepository(db.collection<AttemptDocument>('attempts')),
     notes: new MongoNoteRepository(db.collection<NoteDocument>('notes')),
     examSessions: new MongoExamSessionRepository(db.collection<ExamSessionDocument>('examSessions')),
     profiles: new MongoUserProfileRepository(db.collection<UserProfileDocument>('userProfiles')),
+    submissions: new MongoSubmissionRepository(db.collection<SubmissionDocument>('submissions')),
+    votes: new MongoVoteRepository(db.collection<VoteDocument>('votes')),
+    reports: new MongoReportRepository(db.collection<ReportDocument>('reports')),
     auth: hasGitHubAuth ? new NextAuthAuthProvider() : new DevAuthProvider(),
     scheduler: sm2Scheduler,
+    rateLimiter: new MongoRateLimiter(db.collection<RateLimitDocument>('rateLimits')),
     clock: systemClock,
     ids: uuidGenerator,
   };

@@ -29,15 +29,24 @@ export type {
 } from './use-cases/import-questions';
 export { sampleQuestions } from './use-cases/sample-questions';
 export type { SampleQuestionsInput } from './use-cases/sample-questions';
+export { findSimilarQuestions } from './use-cases/find-similar-questions';
+export type { FindSimilarQuestionsInput } from './use-cases/find-similar-questions';
+export { validateQuestionContent } from './use-cases/validate-question-content';
+export { listQuestionRevisions } from './use-cases/list-question-revisions';
+export type { ListQuestionRevisionsInput } from './use-cases/list-question-revisions';
+export { revertQuestion } from './use-cases/revert-question';
+export type { RevertQuestionInput } from './use-cases/revert-question';
 
 // Contracts other modules legitimately need.
 export type {
   QuestionRepository,
   QuestionFilter,
   QuestionSort,
+  SimilarQuestion,
   TopicCount,
   TagCount,
 } from './ports/question-repository';
+export type { QuestionRevisionRepository } from './ports/question-revision-repository';
 export type { QuestionSummary, QuestionDetail } from './ports/dto';
 export { QUESTION_TYPES, QUESTION_STATUSES } from './domain/question';
 export type {
@@ -51,9 +60,15 @@ export { DIFFICULTIES } from './domain/difficulty';
 export type { Difficulty } from './domain/difficulty';
 export type { FieldChange } from './domain/question-diff';
 export type { TopicNode } from './domain/topic-tree';
+export type { QuestionRevision } from './domain/question-revision';
+export { stemSimilarity, SIMILARITY_THRESHOLD } from './domain/stem-similarity';
 
 // Adapters — exported for the composition root and tests only.
 export { InMemoryQuestionRepository } from './adapters/in-memory/in-memory-question-repository';
 export { MongoQuestionRepository } from './adapters/mongo/mongo-question-repository';
 export { QUESTION_INDEXES } from './adapters/mongo/question-document';
 export type { QuestionDocument } from './adapters/mongo/question-document';
+export { InMemoryQuestionRevisionRepository } from './adapters/in-memory/in-memory-question-revision-repository';
+export { MongoQuestionRevisionRepository } from './adapters/mongo/mongo-question-revision-repository';
+export { QUESTION_REVISION_INDEXES } from './adapters/mongo/question-revision-document';
+export type { QuestionRevisionDocument } from './adapters/mongo/question-revision-document';

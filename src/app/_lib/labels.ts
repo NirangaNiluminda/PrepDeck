@@ -40,6 +40,20 @@ export const STATUS_LABELS: Record<string, string> = {
   archived: 'Archived',
 };
 
+export const SUBMISSION_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending review',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  'changes-requested': 'Changes requested',
+};
+
+export const REPORT_REASON_LABELS: Record<string, string> = {
+  incorrect: 'Incorrect or misleading',
+  duplicate: 'Duplicate of another question',
+  offensive: 'Offensive or inappropriate',
+  other: 'Other',
+};
+
 export const SORT_LABELS: Record<string, string> = {
   newest: 'Newest first',
   oldest: 'Oldest first',

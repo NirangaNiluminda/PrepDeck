@@ -3,10 +3,12 @@ import { DEFAULT_PAGE } from '@/shared/ports';
 import type { Question } from '../../domain/question';
 import { TopicPath } from '../../domain/topic-path';
 import { compareDifficulty } from '../../domain/difficulty';
+import { findMostSimilar } from '../../domain/stem-similarity';
 import type {
   QuestionFilter,
   QuestionRepository,
   QuestionSort,
+  SimilarQuestion,
   TagCount,
   TopicCount,
 } from '../../ports/question-repository';
@@ -92,6 +94,16 @@ export class InMemoryQuestionRepository implements QuestionRepository {
     return [...this.store.values()].some(
       (q) => q.id !== exceptId && q.stem.toLowerCase() === needle,
     );
+  }
+
+  async findSimilarByStem(stem: string, limit: number): Promise<SimilarQuestion[]> {
+    const candidates = [...this.store.values()].filter((q) => q.status !== 'archived');
+    const matches = findMostSimilar(stem, candidates, limit);
+    const byId = new Map(candidates.map((q) => [q.id, q]));
+    return matches.map((m) => {
+      const q = byId.get(m.id)!;
+      return { id: q.id, stem: q.stem, slug: q.slug, similarity: m.similarity };
+    });
   }
 
   // ── Test helpers (not part of the port) ────────────────────────────────

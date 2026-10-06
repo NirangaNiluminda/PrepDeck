@@ -19,7 +19,8 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'FORBIDDEN'
-  | 'UNAUTHENTICATED';
+  | 'UNAUTHENTICATED'
+  | 'RATE_LIMITED';
 
 export interface AppError {
   readonly code: ErrorCode;
@@ -44,5 +45,10 @@ export const forbidden = (message = 'Not allowed'): AppError => ({
 
 export const conflict = (message: string): AppError => ({
   code: 'CONFLICT',
+  message,
+});
+
+export const rateLimited = (message = 'Too many requests — try again shortly'): AppError => ({
+  code: 'RATE_LIMITED',
   message,
 });

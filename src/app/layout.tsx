@@ -58,6 +58,12 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
                   <Link href="/exams" className={NAV_LINK}>
                     Exams
                   </Link>
+                  <Link href="/community" className={NAV_LINK}>
+                    Community
+                  </Link>
+                  <Link href="/recommended" className={NAV_LINK}>
+                    Recommended
+                  </Link>
                   <Link href="/settings" className={NAV_LINK}>
                     Settings
                   </Link>

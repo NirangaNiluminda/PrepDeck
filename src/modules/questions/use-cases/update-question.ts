@@ -1,19 +1,21 @@
-import type { Clock } from '@/shared/ports';
+import type { Clock, IdGenerator } from '@/shared/ports';
 import { type Result, ok, err, conflict, forbidden, notFound } from '@/shared/result';
 import type { QuestionContent } from '../domain/question';
 import type { QuestionRepository } from '../ports/question-repository';
+import type { QuestionRevisionRepository } from '../ports/question-revision-repository';
 import { type QuestionDetail, toDetail } from '../ports/dto';
 
 export interface UpdateQuestionInput extends QuestionContent {
   readonly id: string;
+  readonly editorId: string;
   readonly editorIsAdmin: boolean;
 }
 
 export async function updateQuestion(
   input: UpdateQuestionInput,
-  deps: { questions: QuestionRepository; clock: Clock },
+  deps: { questions: QuestionRepository; revisions: QuestionRevisionRepository; clock: Clock; ids: IdGenerator },
 ): Promise<Result<QuestionDetail>> {
-  const { id, editorIsAdmin, ...content } = input;
+  const { id, editorId, editorIsAdmin, ...content } = input;
   if (!editorIsAdmin) {
     return err(forbidden('Only moderators may edit questions'));
   }
@@ -32,6 +34,27 @@ export async function updateQuestion(
     const owner = await deps.questions.findBySlug(question.slug);
     if (owner && owner.id !== id) return err(conflict(`Slug '${question.slug}' is already taken`));
   }
+
+  // Snapshot the pre-edit content so it can be listed and reverted to later —
+  // saved alongside, never blocking, the edit it's a record of.
+  await deps.revisions.save({
+    id: deps.ids.next(),
+    questionId: id,
+    version: existing.version,
+    content: {
+      slug: existing.slug,
+      stem: existing.stem,
+      type: existing.type,
+      difficulty: existing.difficulty,
+      topicPath: existing.topicPath.value,
+      tags: existing.tags,
+      answer: existing.answer,
+      options: existing.options,
+      source: existing.source,
+    },
+    editedBy: editorId,
+    createdAt: deps.clock.now(),
+  });
 
   await deps.questions.save(question);
   return ok(toDetail(question, true));

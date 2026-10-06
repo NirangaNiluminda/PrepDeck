@@ -3,10 +3,12 @@ import type { Page } from '@/shared/ports';
 import { DEFAULT_PAGE } from '@/shared/ports';
 import type { Question } from '../../domain/question';
 import { TopicPath } from '../../domain/topic-path';
+import { findMostSimilar } from '../../domain/stem-similarity';
 import type {
   QuestionFilter,
   QuestionRepository,
   QuestionSort,
+  SimilarQuestion,
   TagCount,
   TopicCount,
 } from '../../ports/question-repository';
@@ -120,6 +122,26 @@ export class MongoQuestionRepository implements QuestionRepository {
       { projection: { _id: 1 } },
     );
     return found !== null;
+  }
+
+  async findSimilarByStem(stem: string, limit: number): Promise<SimilarQuestion[]> {
+    // No Atlas Search trigram index configured — client-side scoring over a
+    // projection, same rough edge the regex-based `text` filter already has.
+    // Fine at this corpus size; see ARCHITECTURE.md's known rough edges.
+    const candidates = await this.collection
+      .find({ status: { $ne: 'archived' } }, { projection: { _id: 1, stem: 1, slug: 1 } })
+      .toArray();
+
+    const matches = findMostSimilar(
+      stem,
+      candidates.map((c) => ({ id: c._id, stem: c.stem })),
+      limit,
+    );
+    const byId = new Map(candidates.map((c) => [c._id, c]));
+    return matches.map((m) => {
+      const c = byId.get(m.id)!;
+      return { id: c._id, stem: c.stem, slug: c.slug, similarity: m.similarity };
+    });
   }
 
   // ── Translation: QuestionFilter -> Mongo ───────────────────────────────

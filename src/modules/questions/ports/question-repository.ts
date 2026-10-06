@@ -64,4 +64,18 @@ export interface QuestionRepository {
   saveMany(questions: readonly Question[]): Promise<void>;
   /** Case-insensitive exact match. `exceptId` lets an edit keep its own wording. */
   existsWithStem(stem: string, exceptId?: string): Promise<boolean>;
+  /**
+   * Fuzzy duplicate candidates, most similar first — a separate port method
+   * rather than a rule on the entity, since it's a cross-question comparison,
+   * not an invariant of any one Question. Scans non-archived questions; fine
+   * at this corpus size, same trade-off `text` search already makes.
+   */
+  findSimilarByStem(stem: string, limit: number): Promise<SimilarQuestion[]>;
+}
+
+export interface SimilarQuestion {
+  readonly id: string;
+  readonly stem: string;
+  readonly slug?: string;
+  readonly similarity: number;
 }

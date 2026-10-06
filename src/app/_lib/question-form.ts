@@ -126,3 +126,26 @@ export function toFormValues(question: QuestionDetail): QuestionFormValues {
 
 export const flattenTopics = (nodes: readonly TopicNode[]): string[] =>
   nodes.flatMap((node) => [node.path, ...flattenTopics(node.children)]);
+
+/**
+ * Same idea as `toFormValues`, but from a `QuestionContent` rather than a
+ * `QuestionDetail` — for prefilling a community resubmit form from a
+ * Submission's own stored content, which carries `correct` on each option
+ * directly instead of a separate `correctOptionId`.
+ */
+export function contentToFormValues(content: QuestionContent): QuestionFormValues {
+  return {
+    stem: content.stem,
+    type: content.type,
+    difficulty: content.difficulty,
+    topicPath: content.topicPath,
+    tags: (content.tags ?? []).join(', '),
+    modelAnswer: content.answer.modelAnswer,
+    keyPoints: content.answer.keyPoints.join('\n'),
+    explanation: content.answer.explanation ?? '',
+    references: content.answer.references?.join('\n') ?? '',
+    options: content.options?.map((o) => `[${o.correct ? 'x' : ' '}] ${o.text}`).join('\n') ?? '',
+    slug: content.slug ?? '',
+    source: content.source ?? '',
+  };
+}

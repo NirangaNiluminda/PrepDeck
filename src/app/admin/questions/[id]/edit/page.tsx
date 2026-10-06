@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getContainer } from '@/composition/container';
-import { DIFFICULTIES, QUESTION_TYPES, getQuestion, listQuestionFacets } from '@/modules/questions';
+import { DIFFICULTIES, QUESTION_TYPES, getQuestion, listQuestionFacets, listQuestionRevisions } from '@/modules/questions';
 import { QuestionForm } from '../../../../_components/question-form';
+import { RevisionHistory, toRevisionEntry } from '../../../../_components/revision-history';
 import { updateQuestionAction } from '../../../../actions/questions';
 import { flattenTopics, toFormValues } from '../../../../_lib/question-form';
 import { getViewer } from '../../../../_lib/viewer';
@@ -15,9 +16,10 @@ export default async function EditQuestionPage(props: PageProps<'/admin/question
   if (viewer?.role !== 'admin') notFound();
 
   const container = await getContainer();
-  const [result, facets] = await Promise.all([
+  const [result, facets, revisions] = await Promise.all([
     getQuestion({ id, viewerId: viewer.userId, viewerIsAdmin: true, revealAnswer: true }, container),
     listQuestionFacets({ viewerIsAdmin: true }, container),
+    listQuestionRevisions({ questionId: id }, container),
   ]);
   if (!result.ok) notFound();
   const question = result.value;
@@ -45,6 +47,12 @@ export default async function EditQuestionPage(props: PageProps<'/admin/question
           cancelHref={`/questions/${id}`}
         />
       </div>
+
+      {revisions.length > 0 && (
+        <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+          <RevisionHistory questionId={id} revisions={revisions.map(toRevisionEntry)} />
+        </div>
+      )}
     </div>
   );
 }

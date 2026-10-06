@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { DIFFICULTY_LABELS, STATUS_LABELS, topicLabel } from '../_lib/labels';
+import { DIFFICULTY_LABELS, STATUS_LABELS, SUBMISSION_STATUS_LABELS, topicLabel } from '../_lib/labels';
 
 const DIFFICULTY_STYLES: Record<string, string> = {
   easy: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/25',
@@ -27,6 +27,21 @@ export function DifficultyBadge({ difficulty }: { difficulty: string }) {
 export function StatusBadge({ status }: { status: string }) {
   if (status === 'published') return null;
   return <span className={`${BADGE} ${STATUS_STYLES[status] ?? ''}`}>{STATUS_LABELS[status] ?? status}</span>;
+}
+
+const SUBMISSION_STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/25',
+  approved: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/25',
+  rejected: 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-400/10 dark:text-red-300 dark:ring-red-400/25',
+  'changes-requested': 'bg-amber-50 text-amber-800 ring-amber-600/20 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/25',
+};
+
+export function SubmissionStatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`${BADGE} ${SUBMISSION_STATUS_STYLES[status] ?? ''}`}>
+      {SUBMISSION_STATUS_LABELS[status] ?? status}
+    </span>
+  );
 }
 
 /** "Databases › Indexing". With `linked`, each level filters the browse page to that topic. */

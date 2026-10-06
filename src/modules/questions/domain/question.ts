@@ -125,6 +125,19 @@ export class Question {
   }
 
   /**
+   * The same rules `create`/`reviseContent` enforce, for a caller that only
+   * wants to know whether content is valid — a community submission, before
+   * it has an id or an author. Keeping this on the entity means a rule change
+   * (say, the stem length bound) can't drift between "creating a question"
+   * and "checking whether a draft submission is good enough to save".
+   */
+  static validateContent(content: QuestionContent): Result<QuestionContent> {
+    const valid = Question.validate(content);
+    if (!valid.ok) return valid;
+    return ok({ ...valid.value, topicPath: valid.value.topicPath.value });
+  }
+
+  /**
    * The single gate for author-controlled content, shared by create and
    * revise so an edit can never bypass a rule that creation enforces. Also
    * normalises, so the same content always produces the same stored shape

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { fixedClock, sequentialIds } from '@/shared/system-adapters';
 import {
   InMemoryQuestionRepository,
+  InMemoryQuestionRevisionRepository,
   searchQuestions,
   createQuestion,
   getQuestion,
@@ -12,6 +13,9 @@ import {
   listQuestionFacets,
   importQuestions,
   sampleQuestions,
+  findSimilarQuestions,
+  listQuestionRevisions,
+  revertQuestion,
   type ImportQuestionItem,
 } from '@/modules/questions';
 
@@ -28,6 +32,7 @@ import {
 
 const deps = () => ({
   questions: new InMemoryQuestionRepository(),
+  revisions: new InMemoryQuestionRevisionRepository(),
   clock: fixedClock('2026-01-15T10:00:00Z'),
   ids: sequentialIds('q'),
 });
@@ -286,6 +291,7 @@ describe('updateQuestion', () => {
   const edit = (over: Partial<Parameters<typeof updateQuestion>[0]> = {}) => ({
     ...validContent(),
     id: 'q-1',
+    editorId: 'admin-1',
     editorIsAdmin: true,
     ...over,
   });
@@ -343,6 +349,93 @@ describe('updateQuestion', () => {
     const result = await updateQuestion(edit({ id: 'q-2' }), d);
 
     expect(!result.ok && result.error.code).toBe('CONFLICT');
+  });
+
+  it('snapshots the pre-edit content as a revision', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    await updateQuestion(edit({ difficulty: 'hard' }), d);
+
+    const revisions = await listQuestionRevisions({ questionId: 'q-1' }, d);
+    expect(revisions).toHaveLength(1);
+    expect(revisions[0].content.difficulty).toBe('medium');
+    expect(revisions[0].editedBy).toBe('admin-1');
+    expect(revisions[0].version).toBe(1);
+  });
+});
+
+describe('revertQuestion', () => {
+  it('restores an earlier revision as a new edit', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+    await updateQuestion(
+      { ...validContent(), id: 'q-1', editorId: 'admin-1', editorIsAdmin: true, difficulty: 'hard' },
+      d,
+    );
+    const [revision] = await listQuestionRevisions({ questionId: 'q-1' }, d);
+
+    const result = await revertQuestion(
+      { questionId: 'q-1', revisionId: revision.id, editorId: 'admin-1', editorIsAdmin: true },
+      d,
+    );
+
+    expect(result.ok && result.value.difficulty).toBe('medium');
+    // The revert is itself an edit, so it left its own trail behind it.
+    expect(await listQuestionRevisions({ questionId: 'q-1' }, d)).toHaveLength(2);
+  });
+
+  it('requires moderator rights', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+    await updateQuestion(
+      { ...validContent(), id: 'q-1', editorId: 'admin-1', editorIsAdmin: true, difficulty: 'hard' },
+      d,
+    );
+    const [revision] = await listQuestionRevisions({ questionId: 'q-1' }, d);
+
+    const result = await revertQuestion(
+      { questionId: 'q-1', revisionId: revision.id, editorId: 'user-1', editorIsAdmin: false },
+      d,
+    );
+
+    expect(!result.ok && result.error.code).toBe('FORBIDDEN');
+  });
+
+  it('reports not-found for an unknown revision', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const result = await revertQuestion(
+      { questionId: 'q-1', revisionId: 'no-such-revision', editorId: 'admin-1', editorIsAdmin: true },
+      d,
+    );
+
+    expect(!result.ok && result.error.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('findSimilarQuestions', () => {
+  it('surfaces near-duplicate wording above the similarity threshold', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const matches = await findSimilarQuestions(
+      { stem: 'What is the difference between Terraform and Ansible, really?' },
+      d,
+    );
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0].id).toBe('q-1');
+  });
+
+  it('does not surface unrelated wording', async () => {
+    const d = deps();
+    await createQuestion(validInput(), d);
+
+    const matches = await findSimilarQuestions({ stem: 'Explain what a Kubernetes pod is.' }, d);
+
+    expect(matches).toHaveLength(0);
   });
 });
 
