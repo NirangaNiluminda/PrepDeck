@@ -53,7 +53,7 @@ src/
     users/         UserProfile: onboarding answers + settings (no role — see auth/)
     auth/          DevAuthProvider, identity resolution; NextAuthAuthProvider
                     lives in composition/ instead — see that module's index.ts
-    community/     ← not built yet
+    community/     submissions + moderation trail, votes, reports, recommendations
   composition/     container.ts — the only place adapters are wired
   app/             Next.js routes — thin
     _components/   UI pieces; _lib/ presentation helpers; actions/ server actions
@@ -106,7 +106,7 @@ only. `adapters` and `app` import inward, never outward.
 ## Error handling
 
 Expected failures return `Result<T, AppError>` with codes
-`VALIDATION | NOT_FOUND | CONFLICT | FORBIDDEN | UNAUTHENTICATED`.
+`VALIDATION | NOT_FOUND | CONFLICT | FORBIDDEN | UNAUTHENTICATED | RATE_LIMITED`.
 Throw only for bugs and infrastructure faults. `app/api/questions/http.ts` maps
 codes to status. Never let a raw driver error reach the client.
 
@@ -149,13 +149,16 @@ passes ~40 lines, extract a domain service.
 
 ## Current state
 
-**Stages 1 through 4 are built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
+**Stages 1 through 5 are built** (see the ticked boxes in `PROJECT_PLAN.md`). What exists:
 
 - `questions`: slugs, create / update / publish / archive / restore, search
   with an `ids` filter and a `topicPaths` OR-filter (alongside the original
   single-topic `topicPath` prefix match), facets (topic tree + tag counts),
   `sampleQuestions` (published-only, for exams), and `importQuestions`, which
-  upserts by slug with a dry run and field-level diffs.
+  upserts by slug with a dry run and field-level diffs. Every update records
+  a `QuestionRevision` (`listQuestionRevisions`, `revertQuestion`);
+  `findSimilarQuestions` does trigram/Dice duplicate detection
+  (`domain/stem-similarity.ts`, the `pg_trgm` approach, no embeddings).
 - `importer`: parses `content/questions/**/*.md`; run it with
   `npm run import-questions -- [--dry-run] [--publish]`. `tests/content.test.ts`
   fails if any corpus file doesn't parse or import cleanly.
@@ -183,15 +186,30 @@ passes ~40 lines, extract a domain service.
   decided once at sign-in from `ADMIN_GITHUB_LOGINS`, never re-read from a
   database. `resolveUserId` mints our own UUID per external account, same
   discipline as Mongo's ObjectId never escaping.
+- `community`: `submitQuestion`/`resubmitQuestion` (a Submission carries
+  its own moderation trail), `moderateSubmission` (approve calls
+  `questions`' create + publish directly — `community` depends on
+  `questions` per the module map), `castVote` (one vote per user per
+  question), `recommendQuestions` (highly-voted questions in weak topics),
+  `reportQuestion`/`resolveReport`. Moderation is admin-only: roles are still
+  just `user | admin`.
+- Rate limiting: the `RateLimiter` port lives in `shared/rate-limiter.ts`,
+  with a Mongo TTL-collection adapter in `composition/mongo-rate-limiter.ts`.
+  It currently guards submit, resubmit, vote and report only, which is why
+  that Stage 5 box is still unticked. A limited write returns
+  `RATE_LIMITED` (HTTP 429).
 - UI: browse (`/`), question detail with notes, admin create/edit, onboarding
   (`/onboarding`), settings (`/settings`), practice (`/practice`, now reading
   the signed-in user's actual settings instead of a hardcoded cap), progress
   (`/progress`), and exams (`/exams`, `/exams/new`, `/exams/[id]` — one
   adaptive route for building, running, self-grading and results), all
-  keyboard-driven.
+  keyboard-driven. Community: `/community` (hub), `/community/submit`,
+  `/community/submissions` (+ `/[id]/revise`), `/community/moderate`
+  (admins), `/recommended`; vote and report controls on the question page,
+  revision history with revert on the admin edit page.
 - Atlas `interview_prep` holds the 28 `starter-seed` questions, published.
 
-Stages 2 through 4 followed Stage 1 the same day rather than after a week of
+Stages 2 through 5 followed Stage 1 the same day rather than after a week of
 real usage (the plan's suggested pacing) — at the user's explicit request. The
 starter questions should still be rewritten or replaced with the real
 transcript corpus; mastery numbers, the due-card cap and exam scoring are all

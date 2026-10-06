@@ -3,8 +3,8 @@
 A filterable, practisable knowledge base of technical interview questions —
 built to replace revising from long, unsearchable chat transcripts.
 
-Spaced repetition, timed mock exams and real accounts are here; community
-contributions come later — see [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the
+Spaced repetition, timed mock exams, real accounts and community
+contributions (submit, moderate, vote, report) are here — see [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the
 staged roadmap.
 
 ## Stack
@@ -40,6 +40,9 @@ Then open http://localhost:3000.
 | `/onboarding` | Two questions (target role, experience level) shown once, to point Practice at a starting topic. |
 | `/settings` | Daily new-card cap, preferred difficulty, timezone. |
 | `/?bookmarked=1` | Your starred questions. |
+| `/community` | Submit a question (with live preview and a "similar to…" duplicate check), track your submissions, and revise any sent back. |
+| `/community/moderate` | Approve, reject or request changes on submissions, and resolve reports (admins). |
+| `/recommended` | Highly-voted questions in your weakest topics. |
 | `/admin/questions/new` | Write a question (admins). Edit, publish, archive and restore from the question page. |
 
 The JSON API lives at `GET /api/questions` and `GET /api/questions/[id]`.

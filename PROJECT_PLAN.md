@@ -115,10 +115,9 @@ Each stage is independently shippable and independently useful.
       `@/modules/*/adapters/*` from outside the owning module
 - [x] `composition/mongo-client.ts` wired, Atlas free tier connected
 - [x] Index creation script (`scripts/ensure-indexes.ts`) from `QUESTION_INDEXES`
-- [ ] Minimal auth: NextAuth with GitHub provider behind an `AuthProvider` port
-      — *partly done: the `AuthProvider` port exists, backed by a dev adapter
-      that reads `DEV_USER_ID` / `DEV_USER_ROLE`. NextAuth + GitHub is still to
-      do; it matters from Stage 4, when there is more than one user.*
+- [x] Minimal auth: NextAuth with GitHub provider behind an `AuthProvider` port
+      — *done in Stage 4. The dev adapter (`DEV_USER_ID` / `DEV_USER_ROLE`)
+      remains the fallback whenever the GitHub OAuth variables aren't set.*
 
 **Done when:** `npm test` passes with no database running, and `npm run dev`
 serves `GET /api/questions` returning an empty page.
@@ -276,17 +275,21 @@ judge it against.
 
 ### Stage 5 — Community (4–5 days)
 
-- [ ] `community` module: Submission with moderation trail
-- [ ] Submit-a-question form with live preview
-- [ ] Moderation queue: approve / reject / request changes, with a note
-- [ ] **Duplicate detection** on submit — expect ~30% duplicates. Trigram or
+- [x] `community` module: Submission with moderation trail
+- [x] Submit-a-question form with live preview
+- [x] Moderation queue: approve / reject / request changes, with a note
+- [x] **Duplicate detection** on submit — expect ~30% duplicates. Trigram or
       embedding similarity against existing stems, surfaced as "similar to…"
-      before the user submits.
-- [ ] Voting (up/down) with abuse guards: one vote per user, rate limited
-- [ ] Recommendation feed: highly-voted questions in the user's weak topics
-- [ ] Question versioning with edit history and revert
+      before the user submits. *Built as trigram/Dice similarity
+      (`questions/domain/stem-similarity.ts`), the same approach as `pg_trgm`.*
+- [x] Voting (up/down) with abuse guards: one vote per user, rate limited
+- [x] Recommendation feed: highly-voted questions in the user's weak topics
+- [x] Question versioning with edit history and revert
 - [ ] Rate limiting on all write endpoints (add it here, not later)
-- [ ] Report/flag mechanism for bad content
+      — *partly done: the `RateLimiter` port (in-memory + Mongo TTL adapter)
+      guards submit, resubmit, vote and report. Bookmarks, notes, practice
+      attempts, exams, settings and admin edits are not limited yet.*
+- [x] Report/flag mechanism for bad content
 
 ### Stage 6 — Scale and polish (ongoing)
 
