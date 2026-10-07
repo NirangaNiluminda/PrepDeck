@@ -91,6 +91,18 @@ let cached: Container | undefined;
 // isn't a real session, so there's nothing for those buttons to do under it.
 export const hasGitHubAuth = Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
 
+// The dev provider signs *every* request in as DEV_USER_ID — admin by
+// default. On a public deployment that would hand the whole app to any
+// visitor, so a production build ignores it unless ALLOW_DEV_AUTH=1 says
+// otherwise (e.g. `npm run build && npm start` on your own machine).
+const devAuthAllowed = process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_AUTH === '1';
+const signedOut: AuthProvider = { getSession: async () => null };
+
+function chooseAuthProvider(): AuthProvider {
+  if (hasGitHubAuth) return new NextAuthAuthProvider();
+  return devAuthAllowed ? new DevAuthProvider() : signedOut;
+}
+
 export async function getContainer(): Promise<Container> {
   if (cached) return cached;
 
@@ -109,7 +121,7 @@ export async function getContainer(): Promise<Container> {
     submissions: new MongoSubmissionRepository(db.collection<SubmissionDocument>('submissions')),
     votes: new MongoVoteRepository(db.collection<VoteDocument>('votes')),
     reports: new MongoReportRepository(db.collection<ReportDocument>('reports')),
-    auth: hasGitHubAuth ? new NextAuthAuthProvider() : new DevAuthProvider(),
+    auth: chooseAuthProvider(),
     scheduler: sm2Scheduler,
     rateLimiter: new MongoRateLimiter(db.collection<RateLimitDocument>('rateLimits')),
     clock: systemClock,

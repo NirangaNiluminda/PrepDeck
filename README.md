@@ -32,7 +32,9 @@ Then open http://localhost:3000.
 |---|---|
 | `/` | Browse and search. Filters live in the URL, so any view can be shared. `/` focuses search, `j` / `k` move through results, `Enter` opens one. |
 | `/questions/[id]` | One question, with a private notes box. `Space` reveals the answer, `Esc` goes back to the results. |
-| `/practice` | The review session: due cards, then new ones up to a daily cap. `Space` reveals, `1`–`4` rate again/hard/good/easy. |
+| `/practice` | Daily review (everything due) plus your study packs, each with progress and a Continue button. |
+| `/practice/packs/new` | Build a study pack: pick topics and difficulty, name it. Work through it over as many sessions as you like. |
+| `/practice/session` | The review session: due cards, then new ones up to a daily cap. `Space` reveals, `1`–`4` rate again/hard/good/easy. Pause any time; every rating is already saved. |
 | `/progress` | Streak, cards due, mastery by topic, and weakest topics with a one-click link into a session on just that topic. |
 | `/exams/new` | Build a timed mock exam: topics, difficulty, type, question count, duration. |
 | `/exams/[id]` | One URL for the whole exam: the timed runner, then self-grading anything that isn't multiple choice, then results — whichever is true right now. |
@@ -72,6 +74,35 @@ GitHub OAuth App setup steps. `ADMIN_GITHUB_LOGINS` (comma-separated GitHub
 usernames) decides who signs in as admin; everyone else becomes a plain user.
 A Sign in / Sign out button appears in the header once those are set —
 nothing to click under the dev provider, since there's no real session there.
+
+## Deploying
+
+Built for **Vercel + MongoDB Atlas**: every page is server-rendered on demand,
+and Vercel runs Next.js 16 with no extra configuration.
+
+1. **Atlas → Network Access**: allow `0.0.0.0/0`. Vercel functions don't have
+   fixed IP addresses, so the database user's password is what protects it.
+2. **GitHub OAuth App** for the live site (a separate one from local):
+   Homepage `https://<your-app>.vercel.app`, callback
+   `https://<your-app>.vercel.app/api/auth/callback/github`.
+3. **Vercel → Add New → Project**, import this GitHub repo, and set these
+   environment variables (Production):
+
+   | Variable | Value |
+   |---|---|
+   | `MONGODB_URI` | the Atlas `mongodb+srv://…` string |
+   | `MONGODB_DB` | `interview_prep` |
+   | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | from the OAuth App in step 2 |
+   | `AUTH_SECRET` | `openssl rand -base64 33` |
+   | `ADMIN_GITHUB_LOGINS` | your GitHub username |
+
+   Do **not** set `DEV_USER_ID` there. A production build ignores the dev
+   sign-in anyway (everyone is signed out without GitHub configured), unless
+   `ALLOW_DEV_AUTH=1` is set, which is only for trying a production build
+   locally.
+4. Deploy. Every push to `main` redeploys; pull requests get preview URLs.
+5. After a change that adds a Mongo index, run `npm run ensure-indexes`
+   locally against the same `MONGODB_URI`.
 
 ## Scripts
 
