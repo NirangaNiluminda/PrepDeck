@@ -6,7 +6,7 @@ import { reportQuestionAction, type ReportFormState } from '../actions/community
 import { REPORT_REASON_LABELS } from '../_lib/labels';
 
 const INPUT =
-  'block w-full rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-sm shadow-xs placeholder:text-zinc-400 focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900';
+  'block w-full rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-sm shadow-xs placeholder:text-zinc-400 focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-900';
 
 /** A native <details> disclosure needs no client state of its own for open/closed — only the form inside does. */
 export function ReportButton({ questionId }: { questionId: string }) {

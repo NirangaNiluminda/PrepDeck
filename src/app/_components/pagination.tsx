@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { type BrowseParams, PAGE_SIZE, browseHref } from '../_lib/browse-params';
 
-const LINK = 'rounded-md px-2 py-1 font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-400/10';
+const LINK =
+  'rounded-full border border-line bg-surface px-4 py-2 font-semibold text-brand-700 shadow-sm hover:border-brand-300 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-400/10';
 
 export function Pagination({ params, total }: { params: BrowseParams; total: number }) {
   const pages = Math.ceil(total / PAGE_SIZE);
@@ -11,7 +12,7 @@ export function Pagination({ params, total }: { params: BrowseParams; total: num
   const last = Math.min(params.page * PAGE_SIZE, total);
 
   return (
-    <nav aria-label="Pagination" className="mt-2 flex items-center justify-between border-t border-zinc-200 pt-3 text-sm dark:border-zinc-800">
+    <nav aria-label="Pagination" className="mt-6 flex items-center justify-between text-sm">
       {params.page > 1 ? (
         <Link href={browseHref(params, { page: params.page - 1 })} rel="prev" className={LINK}>
           ← Previous

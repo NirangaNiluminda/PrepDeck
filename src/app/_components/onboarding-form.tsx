@@ -31,7 +31,7 @@ export function OnboardingForm() {
               key={role}
               className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
             >
-              <input type="radio" name="targetRole" value={role} required className="accent-indigo-600" />
+              <input type="radio" name="targetRole" value={role} required className="accent-brand-600" />
               <span className="text-zinc-700 dark:text-zinc-300">{TARGET_ROLE_LABELS[role]}</span>
             </label>
           ))}
@@ -46,7 +46,7 @@ export function OnboardingForm() {
               key={level}
               className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
             >
-              <input type="radio" name="experienceLevel" value={level} required className="accent-indigo-600" />
+              <input type="radio" name="experienceLevel" value={level} required className="accent-brand-600" />
               <span className="text-zinc-700 dark:text-zinc-300">{EXPERIENCE_LEVEL_LABELS[level]}</span>
             </label>
           ))}
@@ -56,7 +56,7 @@ export function OnboardingForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+        className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-60"
       >
         {pending ? 'Saving…' : 'Start practising'}
       </button>

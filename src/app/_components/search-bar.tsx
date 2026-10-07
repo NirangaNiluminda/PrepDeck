@@ -13,6 +13,17 @@ export function SearchBar({ params }: { params: BrowseParams }) {
         <label htmlFor={SEARCH_INPUT_ID} className="sr-only">
           Search questions
         </label>
+        <svg
+          aria-hidden
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          className="pointer-events-none absolute left-3.5 top-1/2 size-4.5 -translate-y-1/2 text-brand-500"
+        >
+          <circle cx="9" cy="9" r="5.5" />
+          <path strokeLinecap="round" d="M13.5 13.5L17 17" />
+        </svg>
         <input
           id={SEARCH_INPUT_ID}
           type="search"
@@ -20,11 +31,11 @@ export function SearchBar({ params }: { params: BrowseParams }) {
           form={FILTER_FORM_ID}
           defaultValue={params.q}
           maxLength={200}
-          placeholder="Search questions"
+          placeholder="Search questions…"
           autoComplete="off"
-          className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-3 pr-9 text-sm shadow-xs placeholder:text-zinc-400 focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900"
+          className="w-full rounded-2xl border border-line bg-surface py-3 pl-10 pr-10 text-sm shadow-sm placeholder:text-zinc-400 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/15 focus:outline-none"
         />
-        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">
           <Kbd>/</Kbd>
         </span>
       </div>
@@ -37,7 +48,7 @@ export function SearchBar({ params }: { params: BrowseParams }) {
         form={FILTER_FORM_ID}
         // "newest" is the default, so it submits as empty and stays out of the URL.
         defaultValue={params.sort === 'newest' ? '' : params.sort}
-        className="rounded-lg border border-zinc-300 bg-white py-2 pl-2 pr-8 text-sm shadow-xs dark:border-zinc-700 dark:bg-zinc-900"
+        className="rounded-2xl border border-line bg-surface py-3 pl-3 pr-8 text-sm font-medium shadow-sm"
       >
         <option value="">{SORT_LABELS.newest}</option>
         <option value="oldest">{SORT_LABELS.oldest}</option>

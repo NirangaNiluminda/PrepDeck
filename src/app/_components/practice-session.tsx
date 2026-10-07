@@ -5,8 +5,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { recordAttemptAction } from '../actions/practice';
 import { RATING_LABELS, TYPE_LABELS, formatInterval } from '../_lib/labels';
 import { AnswerBody } from './answer-body';
-import { DifficultyBadge, Kbd, TopicTrail } from './badges';
+import { DifficultyBadge, Kbd, TopicChip, TopicTrail } from './badges';
 import { Markdown } from './markdown';
+import { OptionList } from './option-list';
+import { topicStyle } from '../_lib/labels';
 
 type Rating = 'again' | 'hard' | 'good' | 'easy';
 const RATING_KEYS: Record<'1' | '2' | '3' | '4', Rating> = { '1': 'again', '2': 'hard', '3': 'good', '4': 'easy' };
@@ -36,7 +38,18 @@ export interface SessionCard {
   readonly previewIntervals: Record<Rating, number>;
 }
 
-export function PracticeSession({ cards }: { cards: readonly SessionCard[] }) {
+interface PracticeSessionProps {
+  readonly cards: readonly SessionCard[];
+  /** Where Pause and the end screen go back to. */
+  readonly exitHref: string;
+  /** This session's own URL: reloading it picks up whatever is still waiting. */
+  readonly againHref: string;
+}
+
+export function PracticeSession({ cards: initialCards, exitHref, againHref }: PracticeSessionProps) {
+  // Frozen at the start: `index` points into this list, so it must never
+  // change under it mid-session, whatever the server re-renders.
+  const [cards] = useState(initialCards);
   const [index, setIndex] = useState(0);
   const [counts, setCounts] = useState<Record<Rating, number>>({ again: 0, hard: 0, good: 0, easy: 0 });
   const [failedCount, setFailedCount] = useState(0);
@@ -65,21 +78,54 @@ export function PracticeSession({ cards }: { cards: readonly SessionCard[] }) {
   };
 
   if (done) {
-    return savingCount > 0 ? <FinishingUp /> : <SessionComplete counts={counts} failedCount={failedCount} />;
+    return savingCount > 0 ? (
+      <FinishingUp />
+    ) : (
+      <SessionComplete counts={counts} failedCount={failedCount} exitHref={exitHref} againHref={againHref} />
+    );
   }
   if (!current) return null;
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between text-sm text-zinc-500 dark:text-zinc-400">
-        <span>
-          Card {index + 1} of {cards.length}
-        </span>
-        {current.isNew && (
-          <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-300">
-            New
+      <div className="mb-5">
+        <div className="flex items-center justify-between text-sm font-semibold text-zinc-600 dark:text-zinc-300">
+          <span>
+            Card {index + 1} <span className="font-medium text-zinc-400">of {cards.length}</span>
           </span>
-        )}
+          <span className="flex items-center gap-2">
+            {current.isNew && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-400/15 dark:text-amber-300">
+                ✨ New card
+              </span>
+            )}
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              {RATINGS.filter((r) => counts[r] > 0).map((r) => `${RATING_EMOJI[r]} ${counts[r]}`).join('  ')}
+            </span>
+            {/* Nothing to save on the way out: every rating was saved as it was
+                given, so the queue simply resumes from the next unrated card. */}
+            <Link
+              href={exitHref}
+              title="Every rating is already saved. Come back any time to carry on from here."
+              className="rounded-full px-2.5 py-1 text-xs font-bold text-zinc-600 ring-1 ring-inset ring-line hover:bg-surface-muted dark:text-zinc-300"
+            >
+              ⏸ Pause
+            </Link>
+          </span>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Session progress"
+          aria-valuemin={0}
+          aria-valuemax={cards.length}
+          aria-valuenow={index}
+          className="mt-2 h-2.5 overflow-hidden rounded-full bg-surface-muted"
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-brand-500 to-fuchsia-500 transition-[width] duration-500"
+            style={{ width: `${Math.max((index / cards.length) * 100, 2)}%` }}
+          />
+        </div>
       </div>
 
       {/* Keyed by question id so switching cards remounts this fresh — reveal
@@ -130,73 +176,68 @@ function PracticeCard({ card, onRate }: PracticeCardProps) {
   }, [revealed, picked]);
 
   return (
-    <div>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        <TopicTrail path={card.question.topicPath} />
-      </p>
-      <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-        <DifficultyBadge difficulty={card.question.difficulty} />
-        <span>{TYPE_LABELS[card.question.type] ?? card.question.type}</span>
-      </div>
-      <div className="mt-4 text-xl font-medium leading-snug text-zinc-900 dark:text-zinc-50">
-        <Markdown>{card.question.stem}</Markdown>
-      </div>
-
-      {card.question.options && card.question.options.length > 0 && (
-        <div role="group" aria-label="Options" className="mt-6 space-y-2">
-          {card.question.options.map((option, i) => {
-            const isCorrect = revealed && option.id === card.question.answer?.correctOptionId;
-            const isWrongPick = revealed && picked === option.id && !isCorrect;
-            const tone = isCorrect
-              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-400/10'
-              : isWrongPick
-                ? 'border-rose-500 bg-rose-50 dark:bg-rose-400/10'
-                : 'border-zinc-200 bg-white hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600';
-            return (
-              <button
-                key={option.id}
-                type="button"
-                disabled={revealed}
-                onClick={() => {
-                  setPicked(option.id);
-                  setRevealed(true);
-                }}
-                className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm disabled:cursor-default ${tone}`}
-              >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-current font-mono text-xs text-zinc-500">
-                  {String.fromCharCode(65 + i)}
-                </span>
-                <span className="flex-1 text-zinc-800 dark:text-zinc-200">{option.text}</span>
-              </button>
-            );
-          })}
+    <div className="animate-rise">
+      <div className="relative overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-sm sm:p-8">
+        <span aria-hidden className={`absolute inset-x-0 top-0 h-1.5 ${topicStyle(card.question.topicPath).accent}`} />
+        <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <TopicChip path={card.question.topicPath} />
+          {card.question.topicPath.includes('/') && <TopicTrail path={card.question.topicPath} hideRoot />}
+          <DifficultyBadge difficulty={card.question.difficulty} />
+          <span className="rounded-full bg-surface-muted px-2 py-0.5 font-medium">
+            {TYPE_LABELS[card.question.type] ?? card.question.type}
+          </span>
         </div>
-      )}
+        <div className="mt-4 text-xl font-bold leading-snug text-zinc-900 dark:text-zinc-50 [&_.prose]:text-inherit [&_p]:my-0">
+          <Markdown className="prose-lg font-bold">{card.question.stem}</Markdown>
+        </div>
 
-      {!revealed ? (
-        <button
-          type="button"
-          onClick={() => setRevealed(true)}
-          className="mt-6 inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
-        >
-          Show answer <Kbd>Space</Kbd>
-        </button>
-      ) : (
-        <div className="mt-8 space-y-8">
+        {card.question.options && card.question.options.length > 0 && (
+          <div className="mt-6">
+            <OptionList
+              options={card.question.options}
+              correctOptionId={card.question.answer?.correctOptionId}
+              revealed={revealed}
+              picked={picked}
+              onPick={(optionId) => {
+                setPicked(optionId);
+                setRevealed(true);
+              }}
+            />
+          </div>
+        )}
+
+        {!revealed && (
+          <button
+            type="button"
+            onClick={() => setRevealed(true)}
+            className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-600 to-fuchsia-500 px-4 py-3.5 text-base font-bold text-white shadow-lg shadow-brand-600/25 transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            ✨ Show answer <Kbd>Space</Kbd>
+          </button>
+        )}
+      </div>
+
+      {revealed && (
+        <div className="mt-6 animate-rise space-y-6">
           {card.question.answer && <AnswerBody answer={card.question.answer} />}
-          <RatingBar previewIntervals={card.previewIntervals} onRate={rate} />
+          <div className="sticky bottom-4 rounded-3xl border border-line bg-surface/95 p-4 shadow-lg backdrop-blur">
+            <p className="mb-3 text-center text-sm font-bold text-zinc-700 dark:text-zinc-200">How well did you know it?</p>
+            <RatingBar previewIntervals={card.previewIntervals} onRate={rate} />
+          </div>
         </div>
       )}
     </div>
   );
 }
 
+const RATING_EMOJI: Record<Rating, string> = { again: '😵', hard: '😬', good: '🙂', easy: '😎' };
+
 function RatingBar({ previewIntervals, onRate }: { previewIntervals: Record<Rating, number>; onRate: (r: Rating) => void }) {
   const RATING_STYLE: Record<Rating, string> = {
-    again: 'bg-rose-600 hover:bg-rose-500',
-    hard: 'bg-amber-600 hover:bg-amber-500',
-    good: 'bg-emerald-600 hover:bg-emerald-500',
-    easy: 'bg-sky-600 hover:bg-sky-500',
+    again: 'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-400 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-300',
+    hard: 'border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-400 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300',
+    good: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300',
+    easy: 'border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-400 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-300',
   };
 
   return (
@@ -206,13 +247,16 @@ function RatingBar({ previewIntervals, onRate }: { previewIntervals: Record<Rati
           key={rating}
           type="button"
           onClick={() => onRate(rating)}
-          className={`flex flex-col items-center gap-0.5 rounded-md px-3 py-2 text-sm font-medium text-white ${RATING_STYLE[rating]}`}
+          className={`flex flex-col items-center gap-0.5 rounded-2xl border-2 px-3 py-2.5 text-sm font-bold transition hover:-translate-y-0.5 ${RATING_STYLE[rating]}`}
         >
-          <span className="flex items-center gap-1.5">
+          <span aria-hidden className="text-2xl leading-none">
+            {RATING_EMOJI[rating]}
+          </span>
+          <span className="mt-1 flex items-center gap-1.5">
             {RATING_LABELS[rating]}
             <Kbd>{i + 1}</Kbd>
           </span>
-          <span className="text-xs opacity-80">{formatInterval(previewIntervals[rating])}</span>
+          <span className="text-xs font-medium opacity-75">next in {formatInterval(previewIntervals[rating])}</span>
         </button>
       ))}
     </div>
@@ -221,41 +265,82 @@ function RatingBar({ previewIntervals, onRate }: { previewIntervals: Record<Rati
 
 function FinishingUp() {
   return (
-    <div className="py-12 text-center">
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">Saving your last few ratings…</p>
+    <div className="py-16 text-center">
+      <p aria-hidden className="animate-pulse text-4xl">
+        💾
+      </p>
+      <p className="mt-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">Saving your last few ratings…</p>
     </div>
   );
 }
 
-function SessionComplete({ counts, failedCount }: { counts: Record<Rating, number>; failedCount: number }) {
+const RATING_TILE: Record<Rating, string> = {
+  again: 'bg-rose-50 text-rose-700 dark:bg-rose-400/10 dark:text-rose-300',
+  hard: 'bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300',
+  good: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300',
+  easy: 'bg-sky-50 text-sky-700 dark:bg-sky-400/10 dark:text-sky-300',
+};
+
+interface SessionCompleteProps {
+  readonly counts: Record<Rating, number>;
+  readonly failedCount: number;
+  readonly exitHref: string;
+  readonly againHref: string;
+}
+
+function SessionComplete({ counts, failedCount, exitHref, againHref }: SessionCompleteProps) {
   const total = useMemo(() => RATINGS.reduce((sum, r) => sum + counts[r], 0), [counts]);
+  const knewIt = counts.good + counts.easy;
+  const headline =
+    total > 0 && knewIt / total >= 0.8 ? 'Brilliant session!' : knewIt / total >= 0.5 ? 'Nice work!' : 'Every rep counts!';
 
   return (
-    <div className="py-12 text-center">
-      <p className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Session complete</p>
-      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        {total} {total === 1 ? 'card' : 'cards'} reviewed.
+    <div className="relative overflow-hidden rounded-3xl border border-line bg-surface px-6 py-12 text-center shadow-sm">
+      <span aria-hidden className="pointer-events-none absolute -left-10 -top-10 size-40 rounded-full bg-brand-500/10" />
+      <span aria-hidden className="pointer-events-none absolute -bottom-12 -right-8 size-44 rounded-full bg-fuchsia-500/10" />
+      <p aria-hidden className="relative animate-pop text-6xl">
+        🎉
       </p>
-      <dl className="mx-auto mt-6 grid max-w-xs grid-cols-4 gap-2 text-sm">
+      <p className="relative mt-4 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">{headline}</p>
+      <p className="relative mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+        You reviewed <span className="font-bold text-zinc-900 dark:text-zinc-50">{total}</span>{' '}
+        {total === 1 ? 'card' : 'cards'}. Each one is now scheduled for the right moment to see it again.
+      </p>
+      <dl className="relative mx-auto mt-8 grid max-w-md grid-cols-4 gap-2 text-sm">
         {RATINGS.map((rating) => (
-          <div key={rating}>
-            <dt className="text-xs text-zinc-500 dark:text-zinc-400">{RATING_LABELS[rating]}</dt>
-            <dd className="font-semibold text-zinc-900 dark:text-zinc-50">{counts[rating]}</dd>
+          <div key={rating} className={`rounded-2xl px-2 py-3 ${RATING_TILE[rating]}`}>
+            <dt className="text-xs font-semibold">
+              <span aria-hidden>{RATING_EMOJI[rating]} </span>
+              {RATING_LABELS[rating]}
+            </dt>
+            <dd className="mt-1 text-2xl font-extrabold">{counts[rating]}</dd>
           </div>
         ))}
       </dl>
       {failedCount > 0 && (
-        <p role="alert" className="mx-auto mt-6 max-w-sm text-sm text-rose-600 dark:text-rose-400">
+        <p role="alert" className="relative mx-auto mt-6 max-w-sm text-sm text-rose-600 dark:text-rose-400">
           {failedCount} {failedCount === 1 ? 'rating' : 'ratings'} did not save — your progress numbers may be off for
           this session.
         </p>
       )}
-      <div className="mt-8 flex justify-center gap-4 text-sm">
-        <Link href="/practice" className="rounded-md bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-500">
-          Practice more
+      <div className="relative mt-8 flex flex-wrap justify-center gap-3 text-sm">
+        <Link
+          href={againHref}
+          className="rounded-full bg-gradient-to-r from-brand-600 to-fuchsia-500 px-5 py-2.5 font-bold text-white shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5"
+        >
+          Keep going →
         </Link>
-        <Link href="/progress" className="rounded-md px-3 py-1.5 font-medium text-zinc-700 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-100 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800">
-          View progress
+        <Link
+          href={exitHref}
+          className="rounded-full px-5 py-2.5 font-bold text-zinc-700 ring-1 ring-inset ring-line hover:bg-surface-muted dark:text-zinc-200"
+        >
+          🧠 All practice
+        </Link>
+        <Link
+          href="/progress"
+          className="rounded-full px-5 py-2.5 font-bold text-zinc-700 ring-1 ring-inset ring-line hover:bg-surface-muted dark:text-zinc-200"
+        >
+          📈 View progress
         </Link>
       </div>
     </div>

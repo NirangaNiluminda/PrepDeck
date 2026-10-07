@@ -34,7 +34,12 @@ export function NoteEditor({ questionId, initialContent }: { questionId: string;
 
   return (
     <div>
-      <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Your notes</h2>
+      <h2 className="mb-1 flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-50">
+        <span aria-hidden className="flex size-7 items-center justify-center rounded-lg bg-amber-50 text-sm dark:bg-amber-400/10">
+          📝
+        </span>
+        Your notes
+      </h2>
       <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
         Private to you. Rewording this in your own words is where the learning happens.
       </p>
@@ -52,14 +57,14 @@ export function NoteEditor({ questionId, initialContent }: { questionId: string;
         }}
         rows={5}
         placeholder="Rewrite the answer in your own words…"
-        className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-xs placeholder:text-zinc-400 focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900"
+        className="block w-full rounded-xl border border-line bg-background px-3.5 py-2.5 text-sm placeholder:text-zinc-400 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/15"
       />
       <div className="mt-2 flex items-center gap-3 text-sm">
         <button
           type="button"
           onClick={save}
           disabled={pending || content === savedContent}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          className="rounded-full bg-brand-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-brand-500 disabled:opacity-40 disabled:shadow-none"
         >
           {pending ? 'Saving…' : 'Save note'}
         </button>
@@ -69,7 +74,7 @@ export function NoteEditor({ questionId, initialContent }: { questionId: string;
           </span>
         )}
         {!error && !pending && justSaved && content === savedContent && (
-          <span className="text-zinc-500 dark:text-zinc-400">Saved</span>
+          <span className="animate-pop font-medium text-emerald-600 dark:text-emerald-400">Saved ✓</span>
         )}
       </div>
     </div>

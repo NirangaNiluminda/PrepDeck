@@ -26,7 +26,7 @@ interface SubmissionFormProps {
 }
 
 const INPUT =
-  'block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-xs placeholder:text-zinc-400 focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900';
+  'block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-xs placeholder:text-zinc-400 focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-900';
 
 const lines = (text: string): string[] =>
   text.split('\n').map((line) => line.trim().replace(/^[-*+]\s+/, '')).filter(Boolean);
@@ -213,7 +213,7 @@ export function SubmissionForm({ action, initial, types, difficulties, topics, s
           <button
             type="submit"
             disabled={pending}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+            className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-60"
           >
             {pending ? 'Submitting…' : submitLabel}
           </button>

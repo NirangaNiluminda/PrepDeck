@@ -67,7 +67,7 @@ export default async function ModerateCommunityPage() {
             {open.map((r) => (
               <li key={r.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                 <p className="text-sm text-zinc-900 dark:text-zinc-100">
-                  <Link href={`/questions/${r.questionId}`} className="text-indigo-600 hover:underline dark:text-indigo-400">
+                  <Link href={`/questions/${r.questionId}`} className="text-brand-600 hover:underline dark:text-brand-400">
                     View question
                   </Link>{' '}
                   — {REPORT_REASON_LABELS[r.reason] ?? r.reason}

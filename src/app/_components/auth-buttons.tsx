@@ -1,7 +1,7 @@
 import { signInAction, signOutAction } from '../actions/auth';
 
 const BUTTON =
-  'rounded-md px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-100 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800';
+  'rounded-full px-3 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-inset ring-line bg-surface hover:bg-brand-50 hover:text-brand-700 dark:text-zinc-300 dark:hover:bg-brand-400/10 dark:hover:text-brand-300';
 
 /**
  * Only rendered when GitHub OAuth is actually configured (see layout.tsx) —

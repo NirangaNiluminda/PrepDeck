@@ -1,7 +1,7 @@
 import { approveSubmissionAction, rejectSubmissionAction, requestChangesAction } from '../actions/community';
 
 const BUTTON = 'rounded-md px-2.5 py-1 text-sm font-medium';
-const PRIMARY = `${BUTTON} bg-indigo-600 text-white hover:bg-indigo-500`;
+const PRIMARY = `${BUTTON} bg-brand-600 text-white hover:bg-brand-500`;
 const SECONDARY = `${BUTTON} text-zinc-700 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-100 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800`;
 const DANGER = `${BUTTON} text-rose-700 ring-1 ring-inset ring-rose-300 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-500/40 dark:hover:bg-rose-500/10`;
 const NOTE = 'block w-full rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-sm placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900';

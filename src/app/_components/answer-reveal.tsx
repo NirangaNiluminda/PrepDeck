@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Kbd } from './badges';
+import { OptionList } from './option-list';
 
 interface Option {
   readonly id: string;
@@ -45,50 +46,54 @@ export function AnswerReveal({ options, correctOptionId, children }: AnswerRevea
   return (
     <div>
       {options && options.length > 0 && (
-        <div role="group" aria-label="Options" className="space-y-2">
-          {options.map((option, index) => {
-            const isCorrect = revealed && option.id === correctOptionId;
-            const isWrongPick = revealed && picked === option.id && !isCorrect;
-            const tone = isCorrect
-              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-400/10'
-              : isWrongPick
-                ? 'border-rose-500 bg-rose-50 dark:bg-rose-400/10'
-                : 'border-zinc-200 bg-white hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600';
-            return (
-              <button
-                key={option.id}
-                type="button"
-                disabled={revealed}
-                onClick={() => {
-                  setPicked(option.id);
-                  setRevealed(true);
-                }}
-                className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm disabled:cursor-default ${tone}`}
-              >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-current font-mono text-xs text-zinc-500">
-                  {String.fromCharCode(65 + index)}
-                </span>
-                <span className="flex-1 text-zinc-800 dark:text-zinc-200">{option.text}</span>
-                {isCorrect && <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Correct</span>}
-                {isWrongPick && <span className="text-xs font-medium text-rose-700 dark:text-rose-300">Your pick</span>}
-              </button>
-            );
-          })}
+        <OptionList
+          options={options}
+          correctOptionId={correctOptionId}
+          revealed={revealed}
+          picked={picked}
+          onPick={(optionId) => {
+            setPicked(optionId);
+            setRevealed(true);
+          }}
+        />
+      )}
+
+      {revealed ? (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded
+          aria-controls="answer"
+          className={`${options?.length ? 'mt-6' : ''} inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-zinc-600 ring-1 ring-inset ring-line hover:bg-surface-muted dark:text-zinc-300`}
+        >
+          🙈 Hide answer <Kbd>Space</Kbd>
+        </button>
+      ) : (
+        <div
+          className={`${options?.length ? 'mt-6' : ''} rounded-3xl border-2 border-dashed border-brand-200 bg-brand-50/50 px-6 py-8 text-center dark:border-brand-400/25 dark:bg-brand-400/5`}
+        >
+          <p aria-hidden className="text-4xl">
+            🤔
+          </p>
+          <p className="mt-2 font-bold text-zinc-900 dark:text-zinc-50">
+            {options?.length ? 'Pick an answer, or reveal it' : 'Have a go first'}
+          </p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-zinc-600 dark:text-zinc-400">
+            Say your answer out loud or sketch it out, then check yourself. Trying to recall is what makes it stick.
+          </p>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={false}
+            aria-controls="answer"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-600 to-fuchsia-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-brand-600/25 transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            ✨ Reveal answer <Kbd>Space</Kbd>
+          </button>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={revealed}
-        aria-controls="answer"
-        className={`${options?.length ? 'mt-6' : ''} inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500`}
-      >
-        {revealed ? 'Hide answer' : 'Show answer'}
-        <Kbd>Space</Kbd>
-      </button>
-
-      <div id="answer" hidden={!revealed} className="mt-8">
+      <div id="answer" hidden={!revealed} className="mt-8 animate-rise">
         {children}
       </div>
     </div>

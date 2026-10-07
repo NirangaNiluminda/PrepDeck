@@ -3,7 +3,7 @@ import { archiveQuestionAction, publishQuestionAction, restoreQuestionAction } f
 
 const BUTTON = 'rounded-md px-2.5 py-1 text-sm font-medium';
 const SECONDARY = `${BUTTON} text-zinc-700 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-100 dark:text-zinc-300 dark:ring-zinc-700 dark:hover:bg-zinc-800`;
-const PRIMARY = `${BUTTON} bg-indigo-600 text-white hover:bg-indigo-500`;
+const PRIMARY = `${BUTTON} bg-brand-600 text-white hover:bg-brand-500`;
 
 /** Admin-only controls. The actions check the session themselves; hiding them here is just UI. */
 export function ModerationActions({ id, status }: { id: string; status: string }) {

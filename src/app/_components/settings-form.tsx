@@ -20,7 +20,7 @@ const COMMON_TIMEZONES = [
 ];
 
 const INPUT =
-  'block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900';
+  'block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-900';
 
 export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
   const [state, formAction, pending] = useActionState(updateSettingsAction, {});
@@ -110,7 +110,7 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-60"
         >
           {pending ? 'Saving…' : 'Save settings'}
         </button>

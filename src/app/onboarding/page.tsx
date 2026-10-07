@@ -11,7 +11,7 @@ export default async function OnboardingPage() {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-16 text-center">
         <h1 className="text-lg font-semibold">Sign in to continue</h1>
-        <Link href="/" className="mt-6 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+        <Link href="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
           Browse questions instead
         </Link>
       </div>

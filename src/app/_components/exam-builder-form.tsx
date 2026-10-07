@@ -18,7 +18,7 @@ const DIFFICULTIES = ['easy', 'medium', 'hard'];
 const TYPES = ['mcq', 'short-answer', 'flashcard', 'code'];
 
 const INPUT =
-  'block w-24 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900';
+  'block w-24 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-xs focus:border-brand-500 dark:border-zinc-700 dark:bg-zinc-900';
 
 export function ExamBuilderForm({ topics }: { topics: readonly TopicOption[] }) {
   const [state, formAction, pending] = useActionState(startExamAction, {});
@@ -82,7 +82,7 @@ export function ExamBuilderForm({ topics }: { topics: readonly TopicOption[] }) 
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+        className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-60"
       >
         {pending ? 'Starting…' : 'Start exam'}
       </button>
@@ -114,7 +114,7 @@ function Section({ legend, hint, children }: { legend: string; hint?: string; ch
 function Choice({ name, value, label, count }: { name: string; value: string; label: string; count?: number }) {
   return (
     <label className="flex items-center gap-1.5 rounded px-1 py-0.5 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800/60">
-      <input type="checkbox" name={name} value={value} className="size-3.5 accent-indigo-600" />
+      <input type="checkbox" name={name} value={value} className="size-3.5 accent-brand-600" />
       <span className="text-zinc-700 dark:text-zinc-300">{label}</span>
       {count !== undefined && <span className="text-xs text-zinc-400 dark:text-zinc-500">{count}</span>}
     </label>

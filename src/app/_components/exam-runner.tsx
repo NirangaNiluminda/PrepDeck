@@ -106,7 +106,7 @@ export function ExamRunner({
               void doSubmit();
             }
           }}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
+          className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-500"
         >
           Submit exam
         </button>
@@ -150,7 +150,7 @@ export function ExamRunner({
                 aria-pressed={current.selectedOptionId === option.id}
                 className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm ${
                   current.selectedOptionId === option.id
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-400/10'
+                    ? 'border-brand-500 bg-brand-50 dark:bg-brand-400/10'
                     : 'border-zinc-200 bg-white hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600'
                 }`}
               >
@@ -223,7 +223,7 @@ function Navigator({
         const answered = q.type === 'mcq' ? Boolean(q.selectedOptionId) : true;
         const isCurrent = i === current;
         const tone = isCurrent
-          ? 'bg-indigo-600 text-white'
+          ? 'bg-brand-600 text-white'
           : answered
             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300'
             : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400';

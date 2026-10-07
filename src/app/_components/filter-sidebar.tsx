@@ -33,8 +33,16 @@ export function FilterSidebar({ params, facets, isAdmin, signedIn }: FilterSideb
   const allCount = facets.topics.reduce((sum, t) => sum + t.count, 0);
 
   return (
-    <aside id="filters" aria-label="Filters" className="scroll-mt-4 text-sm md:order-first">
-      <form id={FILTER_FORM_ID} action="/" method="get" className="space-y-6">
+    <aside id="filters" aria-label="Filters" className="scroll-mt-20 text-sm md:order-first">
+      <form
+        id={FILTER_FORM_ID}
+        action="/"
+        method="get"
+        className="space-y-6 rounded-2xl border border-line bg-surface p-4 shadow-sm md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto"
+      >
+        <p className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-50">
+          <span aria-hidden>🎛️</span> Filters
+        </p>
         {signedIn && (
           <Group legend="Library">
             <Choice name="bookmarked" value="1" checked={params.bookmarked} label="Bookmarked only" />
@@ -90,7 +98,7 @@ export function FilterSidebar({ params, facets, isAdmin, signedIn }: FilterSideb
         )}
 
         <noscript>
-          <button type="submit" className="rounded-md bg-indigo-600 px-3 py-1.5 font-medium text-white">
+          <button type="submit" className="rounded-full bg-brand-600 px-4 py-2 font-semibold text-white">
             Apply filters
           </button>
         </noscript>
@@ -103,7 +111,7 @@ export function FilterSidebar({ params, facets, isAdmin, signedIn }: FilterSideb
 function Group({ legend, children }: { legend: string; children: React.ReactNode }) {
   return (
     <fieldset className="space-y-0.5">
-      <legend className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+      <legend className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-brand-600/80 dark:text-brand-300/80">
         {legend}
       </legend>
       {children}
@@ -125,12 +133,12 @@ interface ChoiceProps {
 function Choice({ name, value, checked, label, count, type = 'checkbox', indent = false }: ChoiceProps) {
   return (
     <label
-      className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 ${indent ? 'ml-4' : ''}`}
+      className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-brand-50 has-checked:bg-brand-50 has-checked:font-semibold dark:hover:bg-brand-400/10 dark:has-checked:bg-brand-400/10 ${indent ? 'ml-4' : ''}`}
     >
-      <input type={type} name={name} value={value} defaultChecked={checked} className="size-3.5 shrink-0 accent-indigo-600" />
+      <input type={type} name={name} value={value} defaultChecked={checked} className="size-4 shrink-0 accent-brand-600" />
       <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">{label}</span>
       {count !== undefined && (
-        <span className="tabular-nums text-xs text-zinc-400 dark:text-zinc-500">{count}</span>
+        <span className="rounded-full bg-surface-muted px-1.5 tabular-nums text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{count}</span>
       )}
     </label>
   );
@@ -173,7 +181,7 @@ function TopicTree({ nodes, selected }: { nodes: readonly TopicNode[]; selected?
                   </svg>
                   {choice}
                 </summary>
-                <div className="ml-2 border-l border-zinc-200 pl-2 dark:border-zinc-800">
+                <div className="ml-2 border-l-2 border-line pl-2">
                   <TopicTree nodes={node.children} selected={selected} />
                 </div>
               </details>

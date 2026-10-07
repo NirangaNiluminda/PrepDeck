@@ -13,7 +13,7 @@ export default async function ExamsPage() {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-16 text-center">
         <h1 className="text-lg font-semibold">Sign in to see your exams</h1>
-        <Link href="/" className="mt-6 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+        <Link href="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
           Browse questions instead
         </Link>
       </div>
@@ -26,7 +26,7 @@ export default async function ExamsPage() {
     <div className="mx-auto w-full max-w-2xl px-4 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold tracking-tight">Exams</h1>
-        <Link href="/exams/new" className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">
+        <Link href="/exams/new" className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-500">
           New exam
         </Link>
       </div>
@@ -41,7 +41,7 @@ export default async function ExamsPage() {
             <li key={exam.id}>
               <Link
                 href={`/exams/${exam.id}`}
-                className="flex items-center justify-between gap-4 py-3 hover:text-indigo-600 dark:hover:text-indigo-400"
+                className="flex items-center justify-between gap-4 py-3 hover:text-brand-600 dark:hover:text-brand-400"
               >
                 <div>
                   <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">

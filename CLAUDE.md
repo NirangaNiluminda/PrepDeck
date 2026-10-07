@@ -167,7 +167,16 @@ passes ~40 lines, extract a domain service.
   `getDueQueue` (due cards then new ones, capped per day, topic-filterable),
   `recordAttempt` (takes an optional `examSessionId`), `getProgress`/
   `getWeakAreas` (mastery is a heuristic off each card's own interval and
-  ease factor — see `domain/mastery.ts`).
+  ease factor — see `domain/mastery.ts`). **Study packs**: a `StudyPack` is
+  a saved filter (topics OR-ed, optional difficulties), soft-deleted by
+  `archiveStudyPack`; `createStudyPack`, `listStudyPacks`, `getStudyPack`.
+  A pack stores **no progress**: `packProgress()` derives started/due/
+  not-started/mastery/last-studied from the learner's review cards, and
+  "resume" needs nothing saved because `getDueQueue` (now taking
+  `topicPaths` + `difficulties`) already skips rated cards. That only
+  resumes on the *same* card because question sorts tie-break on `_id`
+  (`recent_v2`/`by_difficulty_v2` indexes; the old `recent` and
+  `by_difficulty` in Atlas are now unused and can be dropped).
 - `exams`: `startExam` (snapshots questions at build time — editing a
   question later never rewrites a past exam), `recordExamAnswer`/
   `toggleExamFlag` (save immediately), `submitExam` (auto-scores MCQ, moves
@@ -204,8 +213,11 @@ passes ~40 lines, extract a domain service.
   call `writeLimitError` (`app/_lib/write-guard.ts`) the same way. A limited
   write returns `RATE_LIMITED` (HTTP 429).
 - UI: browse (`/`), question detail with notes, admin create/edit, onboarding
-  (`/onboarding`), settings (`/settings`), practice (`/practice`, now reading
-  the signed-in user's actual settings instead of a hardcoded cap), progress
+  (`/onboarding`), settings (`/settings`), practice (`/practice` is a hub —
+  daily review plus study-pack cards with progress and Continue;
+  `/practice/packs/new` builds a pack; `/practice/session?pack=|topic=`
+  runs the cards, with a Pause link; old `/practice?topic=` links
+  redirect), progress
   (`/progress`), and exams (`/exams`, `/exams/new`, `/exams/[id]` — one
   adaptive route for building, running, self-grading and results), all
   keyboard-driven. Community: `/community` (hub), `/community/submit`,
@@ -234,6 +246,25 @@ reset unrelated fields' cursor position/focus for no reason.
 Pages call `getViewer()` (from `app/_lib/viewer.ts`), which calls
 `connection()`: the dev auth adapter reads env vars rather than cookies, so
 without it Next.js may prerender a page and serve a stale copy.
+
+**UI theme.** The accent is `brand-*` (mapped to violet in `globals.css`'s
+`@theme`), never a raw palette name — re-theming is a change there, not in 30
+files. Surfaces use the `bg-surface` / `bg-surface-muted` / `border-line`
+tokens, which switch with `prefers-color-scheme`. Each top-level topic has a
+colour and emoji in `topicStyle()` (`app/_lib/labels.ts`), written as full
+class strings so Tailwind's scanner sees them. Browse, the question page and
+Practice were redesigned in this style; Exams, Community and Admin only
+inherit the tokens and still use their original layouts.
+
+**`revalidatePath` inside a server action re-renders the page the user is
+on**, not just the path named, and ships it back in the action's response
+(see `node_modules/next/dist/docs/01-app/02-guides/server-actions.md`). On a
+page that holds client state derived from server props, that silently swaps
+the props mid-interaction: `recordAttemptAction` used to call
+`revalidatePath('/progress')`, which re-fetched the practice queue after
+every rating and made `PracticeSession` skip every other card. Pages here
+are dynamic and the client cache is off by default, so don't add a
+`revalidatePath` just to keep another page fresh.
 
 `PracticeSession` fires `recordAttemptAction` in the background so rating a
 card never waits on the network, but it does wait for those in-flight saves

@@ -32,7 +32,7 @@ function HubLink({ href, title, description }: { href: string; title: string; de
   return (
     <Link
       href={href}
-      className="rounded-lg border border-zinc-200 p-4 hover:border-indigo-400 dark:border-zinc-800 dark:hover:border-indigo-500"
+      className="rounded-lg border border-zinc-200 p-4 hover:border-brand-400 dark:border-zinc-800 dark:hover:border-brand-500"
     >
       <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{title}</p>
       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{description}</p>

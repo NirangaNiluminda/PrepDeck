@@ -19,7 +19,7 @@ export default async function MySubmissionsPage() {
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold tracking-tight">My submissions</h1>
-        <Link href="/community/submit" className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">
+        <Link href="/community/submit" className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-500">
           Submit a question
         </Link>
       </div>
@@ -44,12 +44,12 @@ export default async function MySubmissionsPage() {
                   </p>
                 )}
                 {s.status === 'approved' && s.questionId && (
-                  <Link href={`/questions/${s.questionId}`} className="mt-2 inline-block text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                  <Link href={`/questions/${s.questionId}`} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
                     View published question →
                   </Link>
                 )}
                 {s.status === 'changes-requested' && (
-                  <Link href={`/community/submissions/${s.id}/revise`} className="mt-2 inline-block text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                  <Link href={`/community/submissions/${s.id}/revise`} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
                     Revise and resubmit →
                   </Link>
                 )}

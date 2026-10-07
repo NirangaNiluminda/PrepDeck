@@ -16,7 +16,7 @@ export default function Error({ error, retry }: { error: Error & { digest?: stri
       <button
         type="button"
         onClick={() => retry()}
-        className="mt-6 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
+        className="mt-6 rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-500"
       >
         Try again
       </button>

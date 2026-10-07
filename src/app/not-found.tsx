@@ -7,7 +7,7 @@ export default function NotFound() {
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
         That question doesn&apos;t exist, or it isn&apos;t published yet.
       </p>
-      <Link href="/" className="mt-6 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+      <Link href="/" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
         Browse questions
       </Link>
     </div>

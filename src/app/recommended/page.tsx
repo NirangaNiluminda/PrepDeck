@@ -33,7 +33,7 @@ export default async function RecommendedPage() {
       {weakTopics.length === 0 ? (
         <p className="mt-8 text-sm text-zinc-500 dark:text-zinc-400">
           Review a few more questions in{' '}
-          <Link href="/practice" className="text-indigo-600 hover:underline dark:text-indigo-400">
+          <Link href="/practice" className="text-brand-600 hover:underline dark:text-brand-400">
             Practice
           </Link>{' '}
           to surface your weakest topics here.
@@ -46,7 +46,7 @@ export default async function RecommendedPage() {
         <ul className="mt-8 space-y-3">
           {recommended.map((q) => (
             <li key={q.id} className="rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800">
-              <Link href={`/questions/${q.id}`} className="text-sm font-medium text-zinc-900 hover:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-400">
+              <Link href={`/questions/${q.id}`} className="text-sm font-medium text-zinc-900 hover:text-brand-600 dark:text-zinc-100 dark:hover:text-brand-400">
                 <InlineMarkdown>{q.stem}</InlineMarkdown>
               </Link>
               <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">

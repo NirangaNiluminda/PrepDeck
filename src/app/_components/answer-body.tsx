@@ -9,17 +9,22 @@ type Answer = NonNullable<QuestionDetail['answer']>;
 /** The answer, key points, explanation and references — shared by the question page and a practice session. */
 export function AnswerBody({ answer }: { answer: Answer }) {
   return (
-    <div className="space-y-8">
-      <Section title="Answer">
+    <div className="space-y-4">
+      <Section title="Answer" emoji="💡" tone="bg-brand-50 dark:bg-brand-400/10">
         <Markdown>{answer.modelAnswer}</Markdown>
       </Section>
 
       {answer.keyPoints.length > 0 && (
-        <Section title="Key points">
-          <ul className="space-y-1.5 text-zinc-800 dark:text-zinc-200">
+        <Section title="Key points" emoji="✅" tone="bg-emerald-50 dark:bg-emerald-400/10">
+          <ul className="space-y-2.5 text-zinc-800 dark:text-zinc-200">
             {answer.keyPoints.map((point, index) => (
-              <li key={index} className="flex gap-2.5">
-                <span aria-hidden className="mt-2.5 size-1.5 shrink-0 rounded-full bg-indigo-500" />
+              <li key={index} className="flex gap-3">
+                <span
+                  aria-hidden
+                  className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white"
+                >
+                  {index + 1}
+                </span>
                 <span>
                   <InlineMarkdown>{point}</InlineMarkdown>
                 </span>
@@ -30,21 +35,21 @@ export function AnswerBody({ answer }: { answer: Answer }) {
       )}
 
       {answer.explanation && (
-        <Section title="Explanation">
+        <Section title="Explanation" emoji="📖" tone="bg-sky-50 dark:bg-sky-400/10">
           <Markdown>{answer.explanation}</Markdown>
         </Section>
       )}
 
       {answer.references && answer.references.length > 0 && (
-        <Section title="References">
-          <ul className="space-y-1 text-sm">
+        <Section title="References" emoji="🔗" tone="bg-amber-50 dark:bg-amber-400/10">
+          <ul className="space-y-1.5 text-sm">
             {answer.references.map((reference) => (
               <li key={reference}>
                 <a
                   href={reference}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="break-all text-indigo-600 hover:underline dark:text-indigo-400"
+                  className="break-all font-medium text-brand-600 hover:underline dark:text-brand-400"
                 >
                   {reference}
                 </a>
@@ -57,10 +62,25 @@ export function AnswerBody({ answer }: { answer: Answer }) {
   );
 }
 
-export function Section({ title, children }: { title: string; children: React.ReactNode }) {
+interface SectionProps {
+  readonly title: string;
+  readonly children: React.ReactNode;
+  readonly emoji?: string;
+  /** Background for the emoji badge. */
+  readonly tone?: string;
+}
+
+export function Section({ title, children, emoji, tone = 'bg-surface-muted' }: SectionProps) {
   return (
-    <section>
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{title}</h2>
+    <section className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-50">
+        {emoji && (
+          <span aria-hidden className={`flex size-7 items-center justify-center rounded-lg text-sm ${tone}`}>
+            {emoji}
+          </span>
+        )}
+        {title}
+      </h2>
       {children}
     </section>
   );

@@ -31,8 +31,8 @@ export default async function ProgressPage() {
 
       <div className="mt-6">
         <Link
-          href="/practice"
-          className="inline-block rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
+          href={progress.cardsDue > 0 ? "/practice/session" : "/practice"}
+          className="inline-block rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-500"
         >
           {progress.cardsDue > 0 ? `Practice ${progress.cardsDue} due` : 'Practice'}
         </Link>
@@ -53,8 +53,8 @@ export default async function ProgressPage() {
                 <div className="flex items-center gap-3">
                   <MasteryBar mastery={topic.mastery ?? 0} />
                   <Link
-                    href={`/practice?topic=${encodeURIComponent(topic.path)}`}
-                    className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                    href={`/practice/session?topic=${encodeURIComponent(topic.path)}`}
+                    className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
                   >
                     Practice this
                   </Link>
@@ -74,7 +74,7 @@ export default async function ProgressPage() {
         ) : (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             No questions reviewed yet.{' '}
-            <Link href="/practice" className="text-indigo-600 hover:underline dark:text-indigo-400">
+            <Link href="/practice" className="text-brand-600 hover:underline dark:text-brand-400">
               Start practising
             </Link>{' '}
             to see mastery build up here.
@@ -114,7 +114,7 @@ function TopicMasteryTree({ nodes, depth = 0 }: { nodes: readonly TopicMastery[]
           <div className="flex items-center justify-between gap-3">
             <Link
               href={`/?topic=${encodeURIComponent(node.path)}`}
-              className="truncate text-sm text-zinc-800 hover:text-indigo-600 hover:underline dark:text-zinc-200 dark:hover:text-indigo-400"
+              className="truncate text-sm text-zinc-800 hover:text-brand-600 hover:underline dark:text-zinc-200 dark:hover:text-brand-400"
             >
               {topicLabel(node.slug)}
             </Link>
