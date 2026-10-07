@@ -107,8 +107,11 @@ export const QuestionMapper = {
 /** Run once at deploy. Every filter field the port exposes needs backing here. */
 export const QUESTION_INDEXES: IndexDescription[] = [
   { key: { topicPath: 1, status: 1, difficulty: 1 }, name: 'browse' },
-  { key: { status: 1, createdAt: -1 }, name: 'recent' },
-  { key: { status: 1, difficultyRank: 1, createdAt: -1 }, name: 'by_difficulty' },
+  // v2: _id added as the sort tiebreaker. Renamed because an index's key
+  // can't change under the same name; the old 'recent' and 'by_difficulty'
+  // can be dropped once these exist.
+  { key: { status: 1, createdAt: -1, _id: -1 }, name: 'recent_v2' },
+  { key: { status: 1, difficultyRank: 1, createdAt: -1, _id: -1 }, name: 'by_difficulty_v2' },
   { key: { tags: 1, status: 1 }, name: 'by_tag' },
   { key: { authorId: 1, status: 1 }, name: 'by_author' },
   { key: { stemLower: 1 }, name: 'dedupe', unique: false },

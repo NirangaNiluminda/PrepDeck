@@ -5,9 +5,15 @@ import { InMemoryQuestionRepository, createQuestion, publishQuestion } from '@/m
 import {
   InMemoryAttemptRepository,
   InMemoryReviewCardRepository,
+  InMemoryStudyPackRepository,
+  archiveStudyPack,
+  createStudyPack,
   getDueQueue,
   getProgress,
+  getStudyPack,
   getWeakAreas,
+  listStudyPacks,
+  packProgress,
   recordAttempt,
   sm2Scheduler,
 } from '@/modules/practice';
@@ -36,6 +42,7 @@ const buildDeps = () => ({
   questions: new InMemoryQuestionRepository(),
   reviewCards: new InMemoryReviewCardRepository(),
   attempts: new InMemoryAttemptRepository(),
+  studyPacks: new InMemoryStudyPackRepository(),
   scheduler: sm2Scheduler,
   clock: mutableClock('2026-01-15T10:00:00Z'),
   ids: sequentialIds('attempt'),
@@ -298,5 +305,167 @@ describe('getWeakAreas', () => {
     const weakest = await getWeakAreas({ userId: 'u1', minReviewed: 2 }, d);
 
     expect(weakest).toHaveLength(0);
+  });
+});
+
+describe('packProgress', () => {
+  const now = new Date('2026-01-15T10:00:00Z');
+  const card = (questionId: string, over: Partial<{ interval: number; dueDate: Date; updatedAt: Date }> = {}) => ({
+    questionId,
+    interval: 1,
+    easeFactor: 2.5,
+    dueDate: new Date('2026-01-16T10:00:00Z'),
+    updatedAt: new Date('2026-01-14T10:00:00Z'),
+    ...over,
+  });
+
+  it('counts started, due and not-started cards for only the pack\'s questions', () => {
+    const progress = packProgress(
+      ['a', 'b', 'c'],
+      [card('a'), card('b', { dueDate: new Date('2026-01-15T09:00:00Z') }), card('outside-the-pack')],
+      now,
+    );
+
+    expect(progress).toMatchObject({ total: 3, started: 2, due: 1, notStarted: 1 });
+  });
+
+  it('reports the most recent rating as lastStudiedAt', () => {
+    const progress = packProgress(
+      ['a', 'b'],
+      [card('a', { updatedAt: new Date('2026-01-10T00:00:00Z') }), card('b', { updatedAt: new Date('2026-01-12T00:00:00Z') })],
+      now,
+    );
+
+    expect(progress.lastStudiedAt).toEqual(new Date('2026-01-12T00:00:00Z'));
+  });
+
+  it('leaves mastery and lastStudiedAt undefined before the first rating', () => {
+    const progress = packProgress(['a'], [], now);
+
+    expect(progress).toMatchObject({ total: 1, started: 0, notStarted: 1 });
+    expect(progress.mastery).toBeUndefined();
+    expect(progress.lastStudiedAt).toBeUndefined();
+  });
+});
+
+describe('createStudyPack', () => {
+  let d: Deps;
+  beforeEach(() => { d = buildDeps(); });
+  const packIds = () => ({ ...d, ids: sequentialIds('pack') });
+
+  it('saves a pack when its topics match published questions', async () => {
+    await seedPublished(d, { topicPath: 'databases/indexing', stem: 'How does a B-tree index speed up lookups?' });
+
+    const result = await createStudyPack({ userId: 'u1', name: ' Databases ', topicPaths: ['databases'] }, packIds());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.name).toBe('Databases');
+    expect(await d.studyPacks.listActiveByUser('u1')).toHaveLength(1);
+  });
+
+  it('rejects a pack with no topics or an empty name', async () => {
+    const noTopics = await createStudyPack({ userId: 'u1', name: 'Empty', topicPaths: [] }, packIds());
+    const noName = await createStudyPack({ userId: 'u1', name: '   ', topicPaths: ['databases'] }, packIds());
+
+    expect(noTopics.ok ? null : noTopics.error.code).toBe('VALIDATION');
+    expect(noName.ok ? null : noName.error.code).toBe('VALIDATION');
+  });
+
+  it('rejects a pack that no published question matches', async () => {
+    await seedPublished(d, { topicPath: 'databases/indexing', difficulty: 'easy', stem: 'What is an index, in one sentence?' });
+
+    const result = await createStudyPack(
+      { userId: 'u1', name: 'Hard DB', topicPaths: ['databases'], difficulties: ['hard'] },
+      packIds(),
+    );
+
+    expect(result.ok ? null : result.error.code).toBe('VALIDATION');
+  });
+});
+
+describe('listStudyPacks', () => {
+  let d: Deps;
+  beforeEach(() => { d = buildDeps(); });
+
+  it('shows progress that survives stopping halfway, so a pack can be resumed', async () => {
+    const a = await seedPublished(d, { topicPath: 'databases/indexing', stem: 'Database question one about indexes?' });
+    await seedPublished(d, { topicPath: 'databases/modelling', stem: 'Database question two about modelling?' });
+    await seedPublished(d, { topicPath: 'web/http', stem: 'A web question that is not in the pack?' });
+    await createStudyPack({ userId: 'u1', name: 'DB', topicPaths: ['databases'] }, { ...d, ids: sequentialIds('pack') });
+
+    await recordAttempt({ userId: 'u1', questionId: a, rating: 'good', timeTakenMs: 0 }, d); // one of two done, then "stop"
+    const [pack] = await listStudyPacks({ userId: 'u1', now: d.clock.now() }, d);
+
+    expect(pack.progress).toMatchObject({ total: 2, started: 1, notStarted: 1, due: 0 });
+    expect(pack.progress.lastStudiedAt).toEqual(d.clock.now());
+  });
+
+  it('never lists another user\'s packs', async () => {
+    await seedPublished(d, { topicPath: 'databases/indexing', stem: 'Database question for isolation?' });
+    await createStudyPack({ userId: 'u2', name: 'Theirs', topicPaths: ['databases'] }, { ...d, ids: sequentialIds('pack') });
+
+    expect(await listStudyPacks({ userId: 'u1', now: d.clock.now() }, d)).toEqual([]);
+  });
+});
+
+describe('getStudyPack', () => {
+  it('returns NOT_FOUND for a pack owned by someone else', async () => {
+    const d = buildDeps();
+    await seedPublished(d, { topicPath: 'databases/indexing', stem: 'Database question for ownership?' });
+    const created = await createStudyPack({ userId: 'u2', name: 'Theirs', topicPaths: ['databases'] }, { ...d, ids: sequentialIds('pack') });
+    if (!created.ok) throw new Error(created.error.message);
+
+    const result = await getStudyPack({ userId: 'u1', packId: created.value.id, now: d.clock.now() }, d);
+
+    expect(result.ok ? null : result.error.code).toBe('NOT_FOUND');
+  });
+});
+
+describe('archiveStudyPack', () => {
+  it('hides the pack from the list but keeps it, and keeps the review cards', async () => {
+    const d = buildDeps();
+    const q = await seedPublished(d, { topicPath: 'databases/indexing', stem: 'Database question for archiving?' });
+    const created = await createStudyPack({ userId: 'u1', name: 'DB', topicPaths: ['databases'] }, { ...d, ids: sequentialIds('pack') });
+    if (!created.ok) throw new Error(created.error.message);
+    await recordAttempt({ userId: 'u1', questionId: q, rating: 'good', timeTakenMs: 0 }, d);
+
+    const archived = await archiveStudyPack({ userId: 'u1', packId: created.value.id }, d);
+
+    expect(archived.ok).toBe(true);
+    expect(await listStudyPacks({ userId: 'u1', now: d.clock.now() }, d)).toEqual([]);
+    const stillThere = await getStudyPack({ userId: 'u1', packId: created.value.id, now: d.clock.now() }, d);
+    expect(stillThere.ok && stillThere.value.status).toBe('archived');
+    expect(d.reviewCards.size).toBe(1);
+  });
+});
+
+describe('getDueQueue with a study pack\'s filters', () => {
+  it('offers only questions under any of the pack\'s topics and difficulties, due and new alike', async () => {
+    const d = buildDeps();
+    const dbEasy = await seedPublished(d, { topicPath: 'databases/indexing', difficulty: 'easy', stem: 'An easy database question here?' });
+    await seedPublished(d, { topicPath: 'databases/indexing', difficulty: 'hard', stem: 'A hard database question here?' });
+    const webEasy = await seedPublished(d, { topicPath: 'web/http', difficulty: 'easy', stem: 'An easy web question here?' });
+    await seedPublished(d, { topicPath: 'security/web', difficulty: 'easy', stem: 'An easy security question here?' });
+    await recordAttempt({ userId: 'u1', questionId: dbEasy, rating: 'again', timeTakenMs: 0 }, d);
+    d.clock.advanceDays(1);
+
+    const queue = await getDueQueue(
+      {
+        userId: 'u1',
+        now: d.clock.now(),
+        newCardCap: 10,
+        limit: 10,
+        topicPaths: ['databases', 'web'],
+        difficulties: ['easy'],
+        preferredDifficulty: 'hard', // ignored: the pack's own difficulties win
+      },
+      d,
+    );
+
+    expect(queue.map((c) => [c.question.id, c.isNew])).toEqual([
+      [dbEasy, false],
+      [webEasy, true],
+    ]);
   });
 });

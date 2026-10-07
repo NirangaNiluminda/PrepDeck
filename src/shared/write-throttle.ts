@@ -12,6 +12,7 @@ export const WRITE_LIMITS = {
   bookmark: { limit: 60, windowSeconds: 60 },
   note: { limit: 60, windowSeconds: 60 },
   attempt: { limit: 120, windowSeconds: 60 },
+  'study-pack': { limit: 30, windowSeconds: 60 },
   'exam-start': { limit: 20, windowSeconds: 3600 },
   'exam-answer': { limit: 120, windowSeconds: 60 },
   'exam-submit': { limit: 20, windowSeconds: 3600 },

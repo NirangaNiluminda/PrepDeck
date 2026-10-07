@@ -16,12 +16,15 @@ import {
 import {
   MongoAttemptRepository,
   MongoReviewCardRepository,
+  MongoStudyPackRepository,
   sm2Scheduler,
   type AttemptDocument,
   type AttemptRepository,
   type ReviewCardDocument,
   type ReviewCardRepository,
   type ReviewScheduler,
+  type StudyPackDocument,
+  type StudyPackRepository,
 } from '@/modules/practice';
 import {
   MongoNoteRepository,
@@ -65,6 +68,7 @@ export interface Container {
   readonly bookmarks: BookmarkRepository;
   readonly reviewCards: ReviewCardRepository;
   readonly attempts: AttemptRepository;
+  readonly studyPacks: StudyPackRepository;
   readonly notes: NoteRepository;
   readonly examSessions: ExamSessionRepository;
   readonly profiles: UserProfileRepository;
@@ -98,6 +102,7 @@ export async function getContainer(): Promise<Container> {
     bookmarks: new MongoBookmarkRepository(db.collection<BookmarkDocument>('bookmarks')),
     reviewCards: new MongoReviewCardRepository(db.collection<ReviewCardDocument>('reviewCards')),
     attempts: new MongoAttemptRepository(db.collection<AttemptDocument>('attempts')),
+    studyPacks: new MongoStudyPackRepository(db.collection<StudyPackDocument>('studyPacks')),
     notes: new MongoNoteRepository(db.collection<NoteDocument>('notes')),
     examSessions: new MongoExamSessionRepository(db.collection<ExamSessionDocument>('examSessions')),
     profiles: new MongoUserProfileRepository(db.collection<UserProfileDocument>('userProfiles')),

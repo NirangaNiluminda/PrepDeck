@@ -146,6 +146,17 @@ describe('searchQuestions', () => {
     );
   });
 
+  it('orders questions created in the same instant by id, so a list never reshuffles between reads', async () => {
+    // deps() uses a fixed clock, so all three share one createdAt — a bulk import's situation.
+    const ids = async (sort: 'oldest' | 'newest') =>
+      (await searchQuestions({ sort, viewerIsAdmin: true }, d)).items.map((q) => q.id);
+
+    const oldest = await ids('oldest');
+
+    expect(oldest).toEqual([...oldest].sort());
+    expect(await ids('newest')).toEqual([...oldest].reverse());
+  });
+
   it('hides unpublished questions from learners', async () => {
     const page = await searchQuestions({ viewerIsAdmin: false }, d);
     expect(page.total).toBe(0);

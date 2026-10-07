@@ -1,4 +1,5 @@
 import type { Collection } from 'mongodb';
+import type { CardState } from '../../domain/pack-progress';
 import { ReviewCard } from '../../domain/review-card';
 import type { MasteryInput, ReviewCardRepository } from '../../ports/review-card-repository';
 import { type ReviewCardDocument, reviewCardIdOf } from './documents';
@@ -45,6 +46,20 @@ export class MongoReviewCardRepository implements ReviewCardRepository {
       .find({ userId }, { projection: { questionId: 1, interval: 1, easeFactor: 1 } })
       .toArray();
     return docs.map((d) => ({ questionId: d.questionId, interval: d.interval, easeFactor: d.easeFactor }));
+  }
+
+  // Served by the by_user_due index's userId prefix.
+  async listCardStates(userId: string): Promise<CardState[]> {
+    const docs = await this.collection
+      .find({ userId }, { projection: { questionId: 1, interval: 1, easeFactor: 1, dueDate: 1, updatedAt: 1 } })
+      .toArray();
+    return docs.map((d) => ({
+      questionId: d.questionId,
+      interval: d.interval,
+      easeFactor: d.easeFactor,
+      dueDate: d.dueDate,
+      updatedAt: d.updatedAt,
+    }));
   }
 
   async save(card: ReviewCard): Promise<void> {

@@ -147,10 +147,12 @@ export class InMemoryQuestionRepository implements QuestionRepository {
   }
 
   private sort(items: Question[], sort: QuestionSort): Question[] {
-    const newest = (a: Question, b: Question) => b.createdAt.getTime() - a.createdAt.getTime();
+    // Same tiebreak as the Mongo adapter, so both order same-instant questions identically.
+    const byId = (a: Question, b: Question) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const newest = (a: Question, b: Question) => b.createdAt.getTime() - a.createdAt.getTime() || byId(b, a);
     const by: Record<QuestionSort, (a: Question, b: Question) => number> = {
       newest,
-      oldest: (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+      oldest: (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || byId(a, b),
       easiest: (a, b) => compareDifficulty(a.difficulty, b.difficulty) || newest(a, b),
       hardest: (a, b) => compareDifficulty(b.difficulty, a.difficulty) || newest(a, b),
     };

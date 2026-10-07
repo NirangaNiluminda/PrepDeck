@@ -181,16 +181,19 @@ export class MongoQuestionRepository implements QuestionRepository {
     return query;
   }
 
+  // `_id` breaks ties: a bulk import creates many questions in the same
+  // millisecond, and without it their order changes between queries, so a
+  // practice queue shuffles on resume and browse pages can repeat or skip one.
   private toSort(sort: QuestionSort): Sort {
     switch (sort) {
       case 'oldest':
-        return { createdAt: 1 };
+        return { createdAt: 1, _id: 1 };
       case 'easiest':
-        return { difficultyRank: 1, createdAt: -1 };
+        return { difficultyRank: 1, createdAt: -1, _id: -1 };
       case 'hardest':
-        return { difficultyRank: -1, createdAt: -1 };
+        return { difficultyRank: -1, createdAt: -1, _id: -1 };
       default:
-        return { createdAt: -1 };
+        return { createdAt: -1, _id: -1 };
     }
   }
 }

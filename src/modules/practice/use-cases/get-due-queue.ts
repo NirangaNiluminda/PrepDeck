@@ -14,6 +14,14 @@ export interface GetDueQueueInput {
   readonly limit: number;
   /** Restricts to a topic and its descendants — how a weak-area suggestion becomes a session. */
   readonly topicPath?: string;
+  /** Restricts to any of these topics (OR) — a study pack's selection. Combined with `topicPath` if both are set. */
+  readonly topicPaths?: readonly string[];
+  /**
+   * Restricts both due and new cards to these difficulties — a study pack's
+   * choice. Unlike `preferredDifficulty`, which only biases new material,
+   * and which this replaces when set: the learner picked the pack's content.
+   */
+  readonly difficulties?: readonly Difficulty[];
   /** IANA zone the new-card cap's "today" is drawn in. Defaults to UTC. Due cards are unaffected — what's due is due regardless of preference. */
   readonly timezone?: string;
   /** Biases new material toward one difficulty. Due cards are unaffected — reviewing what's due isn't optional. */
@@ -28,6 +36,9 @@ export interface GetDueQueueDeps {
 
 const isUnderTopic = (topicPath: string, filter: string | undefined): boolean =>
   !filter || topicPath === filter || topicPath.startsWith(`${filter}/`);
+
+const isUnderAny = (topicPath: string, filters: readonly string[] | undefined): boolean =>
+  !filters?.length || filters.some((f) => isUnderTopic(topicPath, f));
 
 /** What each of the four ratings would do to this card right now — the "1d / 3d / 6d / 8d" a learner sees on the buttons. */
 const previewIntervals = (state: ReviewState, scheduler: ReviewScheduler, now: Date): Record<Rating, number> =>
@@ -49,7 +60,8 @@ export async function getDueQueue(input: GetDueQueueInput, deps: GetDueQueueDeps
 
   // Overfetch due cards when a topic filter is active, since some will be
   // filtered out after their question details come back.
-  const dueLimit = input.topicPath ? Math.max(input.limit * 4, 100) : input.limit;
+  const filtered = Boolean(input.topicPath || input.topicPaths?.length || input.difficulties?.length);
+  const dueLimit = filtered ? Math.max(input.limit * 4, 100) : input.limit;
   const due = await deps.reviewCards.listDue(input.userId, input.now, dueLimit);
   const dueStateByQuestion = new Map(
     due.map((card) => [card.questionId, { interval: card.interval, easeFactor: card.easeFactor, lapses: card.lapses }]),
@@ -63,7 +75,8 @@ export async function getDueQueue(input: GetDueQueueInput, deps: GetDueQueueDeps
   );
   const dueCards: DueCard[] = dueDetails
     .flatMap((r) => (r.ok ? [r.value] : [])) // a question archived after review quietly drops off rather than erroring the session
-    .filter((q) => isUnderTopic(q.topicPath, input.topicPath))
+    .filter((q) => isUnderTopic(q.topicPath, input.topicPath) && isUnderAny(q.topicPath, input.topicPaths))
+    .filter((q) => !input.difficulties?.length || (input.difficulties as readonly string[]).includes(q.difficulty))
     .slice(0, input.limit)
     .map((question) => ({
       question,
@@ -77,7 +90,12 @@ export async function getDueQueue(input: GetDueQueueInput, deps: GetDueQueueDeps
     const page = await searchQuestions(
       {
         topicPath: input.topicPath,
-        difficulties: input.preferredDifficulty ? [input.preferredDifficulty] : undefined,
+        topicPaths: input.topicPaths?.length ? input.topicPaths : undefined,
+        difficulties: input.difficulties?.length
+          ? input.difficulties
+          : input.preferredDifficulty
+            ? [input.preferredDifficulty]
+            : undefined,
         excludeIds: [...seenIds],
         sort: 'oldest',
         page: { limit: Math.min(remaining, newBudget), offset: 0 },

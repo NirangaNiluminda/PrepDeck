@@ -1,3 +1,4 @@
+import type { CardState } from '../domain/pack-progress';
 import type { ReviewCard } from '../domain/review-card';
 
 /** The subset of a card's schedule state the mastery calculation needs. */
@@ -16,5 +17,7 @@ export interface ReviewCardRepository {
   countCreatedSince(userId: string, since: Date): Promise<number>;
   /** Every question this user has a card for — the "already seen" set for the due queue, and mastery's input. */
   listMasteryInputs(userId: string): Promise<MasteryInput[]>;
+  /** Every card's schedule state plus when it was last rated — a study pack's progress input. */
+  listCardStates(userId: string): Promise<CardState[]>;
   save(card: ReviewCard): Promise<void>;
 }

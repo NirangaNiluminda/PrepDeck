@@ -1,3 +1,4 @@
+import type { CardState } from '../../domain/pack-progress';
 import type { ReviewCard } from '../../domain/review-card';
 import type { MasteryInput, ReviewCardRepository } from '../../ports/review-card-repository';
 
@@ -30,6 +31,16 @@ export class InMemoryReviewCardRepository implements ReviewCardRepository {
       questionId: c.questionId,
       interval: c.interval,
       easeFactor: c.easeFactor,
+    }));
+  }
+
+  async listCardStates(userId: string): Promise<CardState[]> {
+    return this.byUser(userId).map((c) => ({
+      questionId: c.questionId,
+      interval: c.interval,
+      easeFactor: c.easeFactor,
+      dueDate: c.dueDate,
+      updatedAt: c.updatedAt,
     }));
   }
 
