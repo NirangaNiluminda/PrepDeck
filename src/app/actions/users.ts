@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getContainer, getSession } from '@/composition/container';
 import { completeOnboarding, updateUserSettings } from '@/modules/users';
+import { writeLimitError } from '../_lib/write-guard';
 
 export interface OnboardingState {
   readonly error?: string;
@@ -15,6 +16,9 @@ export async function completeOnboardingAction(
 ): Promise<OnboardingState> {
   const session = await getSession();
   if (!session) return { error: 'Sign in to continue.' };
+
+  const limited = await writeLimitError('profile', session.userId);
+  if (limited) return { error: limited };
 
   const targetRole = formData.get('targetRole');
   const experienceLevel = formData.get('experienceLevel');
@@ -53,6 +57,9 @@ export interface SettingsState {
 export async function updateSettingsAction(_previous: SettingsState, formData: FormData): Promise<SettingsState> {
   const session = await getSession();
   if (!session) return { error: 'Sign in to continue.' };
+
+  const limited = await writeLimitError('profile', session.userId);
+  if (limited) return { error: limited };
 
   const newCardCap = Number(formData.get('newCardCap'));
   const timezone = formData.get('timezone');

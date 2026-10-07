@@ -13,12 +13,16 @@ import {
 } from '@/modules/exams';
 import { recordAttempt } from '@/modules/practice';
 import { computeMcqTimings } from '../_lib/exam-timing';
+import { writeLimitError } from '../_lib/write-guard';
+import type { WriteKind } from '@/shared/write-throttle';
 
 // Server actions are reachable by a direct POST, not just this app's UI —
 // identity always comes from the session, never a payload field.
-async function requireSession() {
+async function requireSession(kind: WriteKind) {
   const session = await getSession();
   if (!session) throw new Error('Sign in to take an exam');
+  const limited = await writeLimitError(kind, session.userId);
+  if (limited) throw new Error(limited);
   return session;
 }
 
@@ -27,7 +31,10 @@ export interface ExamBuilderState {
 }
 
 export async function startExamAction(_previous: ExamBuilderState, formData: FormData): Promise<ExamBuilderState> {
-  const session = await requireSession();
+  const session = await getSession();
+  if (!session) throw new Error('Sign in to take an exam');
+  const limited = await writeLimitError('exam-start', session.userId);
+  if (limited) return { error: limited };
 
   const strings = (name: string) => formData.getAll(name).filter((v): v is string => typeof v === 'string' && v !== '');
   const count = Number(formData.get('count'));
@@ -61,7 +68,7 @@ export async function recordExamAnswerAction(input: {
   readonly questionId: string;
   readonly selectedOptionId: string;
 }): Promise<void> {
-  const session = await requireSession();
+  const session = await requireSession('exam-answer');
   const result = await recordExamAnswer({ ...input, userId: session.userId }, await getContainer());
   if (!result.ok) throw new Error(result.error.message);
 }
@@ -71,7 +78,7 @@ export async function toggleExamFlagAction(input: {
   readonly questionId: string;
   readonly flagged: boolean;
 }): Promise<void> {
-  const session = await requireSession();
+  const session = await requireSession('exam-answer');
   const result = await toggleExamFlag({ ...input, userId: session.userId }, await getContainer());
   if (!result.ok) throw new Error(result.error.message);
 }
@@ -85,7 +92,7 @@ export async function toggleExamFlagAction(input: {
  * the same signal as answering wrong, just with no real "time taken" to log.
  */
 export async function submitExamAction(examSessionId: string): Promise<void> {
-  const session = await requireSession();
+  const session = await requireSession('exam-submit');
   const container = await getContainer();
 
   const result = await submitExam({ examSessionId, userId: session.userId }, container);
@@ -101,7 +108,7 @@ export async function selfGradeExamAnswerAction(input: {
   readonly questionId: string;
   readonly correct: boolean;
 }): Promise<void> {
-  const session = await requireSession();
+  const session = await requireSession('exam-answer');
   const container = await getContainer();
 
   const result = await selfGradeExamAnswer({ ...input, userId: session.userId }, container);

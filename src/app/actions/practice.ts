@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getContainer, getSession } from '@/composition/container';
 import { recordAttempt } from '@/modules/practice';
+import { writeLimitError } from '../_lib/write-guard';
 
 export interface RecordAttemptPayload {
   readonly questionId: string;
@@ -18,6 +19,9 @@ export interface RecordAttemptPayload {
 export async function recordAttemptAction(payload: RecordAttemptPayload): Promise<void> {
   const session = await getSession();
   if (!session) throw new Error('Sign in to record an attempt');
+
+  const limited = await writeLimitError('attempt', session.userId);
+  if (limited) throw new Error(limited);
 
   const result = await recordAttempt(
     {

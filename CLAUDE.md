@@ -195,9 +195,14 @@ passes ~40 lines, extract a domain service.
   just `user | admin`.
 - Rate limiting: the `RateLimiter` port lives in `shared/rate-limiter.ts`,
   with a Mongo TTL-collection adapter in `composition/mongo-rate-limiter.ts`.
-  It currently guards submit, resubmit, vote and report only, which is why
-  that Stage 5 box is still unticked. A limited write returns
-  `RATE_LIMITED` (HTTP 429).
+  Two layers: limits that are product rules (submit, resubmit, vote,
+  report) live in those use cases; every other write — bookmarks, notes,
+  attempts, exams, settings, admin edits, moderation, the API POSTs — calls
+  `throttleWrite` (`shared/write-throttle.ts`, one `WRITE_LIMITS` table) at
+  the boundary, right after reading the session. That's an abuse guard,
+  not business logic, so it doesn't break rule 6; a new write action should
+  call `writeLimitError` (`app/_lib/write-guard.ts`) the same way. A limited
+  write returns `RATE_LIMITED` (HTTP 429).
 - UI: browse (`/`), question detail with notes, admin create/edit, onboarding
   (`/onboarding`), settings (`/settings`), practice (`/practice`, now reading
   the signed-in user's actual settings instead of a hardcoded cap), progress

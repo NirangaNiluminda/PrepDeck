@@ -285,10 +285,10 @@ judge it against.
 - [x] Voting (up/down) with abuse guards: one vote per user, rate limited
 - [x] Recommendation feed: highly-voted questions in the user's weak topics
 - [x] Question versioning with edit history and revert
-- [ ] Rate limiting on all write endpoints (add it here, not later)
-      — *partly done: the `RateLimiter` port (in-memory + Mongo TTL adapter)
-      guards submit, resubmit, vote and report. Bookmarks, notes, practice
-      attempts, exams, settings and admin edits are not limited yet.*
+- [x] Rate limiting on all write endpoints (add it here, not later)
+      — *product limits (submit, resubmit, vote, report) live in their use
+      cases; every other write gets a generic per-user guard from
+      `shared/write-throttle.ts`, called at the boundary.*
 - [x] Report/flag mechanism for bad content
 
 ### Stage 6 — Scale and polish (ongoing)

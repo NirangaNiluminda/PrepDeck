@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { getContainer, getSession } from '@/composition/container';
 import { getQuestion, publishQuestion } from '@/modules/questions';
+import { throttleWrite } from '@/shared/write-throttle';
 import { fail, respond } from '../http';
 
 interface Params {
@@ -35,6 +36,9 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!session) {
     return fail({ code: 'UNAUTHENTICATED', message: 'Sign in required' });
   }
+
+  const limited = await throttleWrite((await getContainer()).rateLimiter, 'question-edit', session.userId);
+  if (!limited.ok) return fail(limited.error);
 
   const result = await publishQuestion(
     { id, moderatorId: session.userId, moderatorIsAdmin: session.role === 'admin' },

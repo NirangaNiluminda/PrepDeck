@@ -9,6 +9,7 @@ import {
   QUESTION_STATUSES,
 } from '@/modules/questions';
 import { validationError } from '@/shared/result';
+import { throttleWrite } from '@/shared/write-throttle';
 import { fail, respond } from './http';
 
 /**
@@ -98,6 +99,9 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return fail({ code: 'UNAUTHENTICATED', message: 'Sign in to contribute' });
   }
+
+  const limited = await throttleWrite((await getContainer()).rateLimiter, 'question-edit', session.userId);
+  if (!limited.ok) return fail(limited.error);
 
   // A body that isn't JSON is a client mistake, not a server fault: let Zod
   // reject it as a 400 instead of letting the parse error escape as a 500.

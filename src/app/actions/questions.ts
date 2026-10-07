@@ -12,6 +12,7 @@ import {
   updateQuestion,
 } from '@/modules/questions';
 import { type QuestionFormState, readQuestionForm, toQuestionContent } from '../_lib/question-form';
+import { writeLimitError } from '../_lib/write-guard';
 
 // Server actions can be called with a direct POST, bypassing the UI that hides
 // them. Each one reads identity from the session and passes the role to a use
@@ -24,6 +25,9 @@ export async function createQuestionAction(
   const values = readQuestionForm(formData);
   const session = await getSession();
   if (session?.role !== 'admin') return { error: 'Only admins can add questions.', values };
+
+  const limited = await writeLimitError('question-edit', session.userId);
+  if (limited) return { error: limited, values };
 
   const content = toQuestionContent(values);
   if (!content.ok) return { error: content.error.message, values };
@@ -43,6 +47,9 @@ export async function updateQuestionAction(
   const values = readQuestionForm(formData);
   const session = await getSession();
   if (!session) return { error: 'Sign in to edit questions.', values };
+
+  const limited = await writeLimitError('question-edit', session.userId);
+  if (limited) return { error: limited, values };
 
   const content = toQuestionContent(values);
   if (!content.ok) return { error: content.error.message, values };
@@ -94,6 +101,8 @@ export async function restoreQuestionAction(formData: FormData): Promise<void> {
 export async function revertQuestionAction(questionId: string, revisionId: string): Promise<void> {
   const session = await getSession();
   if (!session) throw new Error('Sign in to moderate questions');
+  const limited = await writeLimitError('question-edit', session.userId);
+  if (limited) throw new Error(limited);
 
   const result = await revertQuestion(
     { questionId, revisionId, editorId: session.userId, editorIsAdmin: session.role === 'admin' },
@@ -106,6 +115,8 @@ export async function revertQuestionAction(questionId: string, revisionId: strin
 async function moderationRequest(formData: FormData) {
   const session = await getSession();
   if (!session) throw new Error('Sign in to moderate questions');
+  const limited = await writeLimitError('question-edit', session.userId);
+  if (limited) throw new Error(limited);
   const id = formData.get('id');
   if (typeof id !== 'string' || !id) throw new Error('Missing question id');
   return { session, id };

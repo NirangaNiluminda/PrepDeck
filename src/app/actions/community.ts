@@ -14,6 +14,7 @@ import {
   type ModerationDecision,
 } from '@/modules/community';
 import { readQuestionForm, toQuestionContent, type QuestionFormState } from '../_lib/question-form';
+import { writeLimitError } from '../_lib/write-guard';
 
 export async function submitQuestionAction(
   _previous: QuestionFormState,
@@ -63,6 +64,8 @@ export async function checkSimilarQuestionsAction(stem: string): Promise<Similar
 async function moderationDecisionRequest(formData: FormData, decision: ModerationDecision): Promise<void> {
   const session = await getSession();
   if (!session) throw new Error('Sign in to moderate submissions');
+  const limited = await writeLimitError('moderation', session.userId);
+  if (limited) throw new Error(limited);
   const submissionId = formData.get('id');
   if (typeof submissionId !== 'string' || !submissionId) throw new Error('Missing submission id');
   const note = formData.get('note');
@@ -148,6 +151,8 @@ export async function reportQuestionAction(
 export async function resolveReportAction(outcome: 'resolved' | 'dismissed', formData: FormData): Promise<void> {
   const session = await getSession();
   if (!session) throw new Error('Sign in to moderate reports');
+  const limited = await writeLimitError('moderation', session.userId);
+  if (limited) throw new Error(limited);
 
   const reportId = formData.get('reportId');
   if (typeof reportId !== 'string' || !reportId) {
