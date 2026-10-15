@@ -78,7 +78,11 @@ nothing to click under the dev provider, since there's no real session there.
 ## Deploying
 
 Built for **Vercel + MongoDB Atlas**: every page is server-rendered on demand,
-and Vercel runs Next.js 16 with no extra configuration.
+and Vercel runs Next.js 16 with no extra configuration. Vercel hosts only the
+app; the data stays in the Atlas cluster, reached through `MONGODB_URI`.
+`vercel.json` pins the functions to `bom1` (Mumbai), next to the Atlas
+cluster in AWS ap-south-1. Every page makes several database calls, so a
+function far from the database is slow; change both together if one moves.
 
 1. **Atlas → Network Access**: allow `0.0.0.0/0`. Vercel functions don't have
    fixed IP addresses, so the database user's password is what protects it.

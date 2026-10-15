@@ -175,8 +175,7 @@ passes ~40 lines, extract a domain service.
   "resume" needs nothing saved because `getDueQueue` (now taking
   `topicPaths` + `difficulties`) already skips rated cards. That only
   resumes on the *same* card because question sorts tie-break on `_id`
-  (`recent_v2`/`by_difficulty_v2` indexes; the old `recent` and
-  `by_difficulty` in Atlas are now unused and can be dropped).
+  (`recent_v2`/`by_difficulty_v2` indexes).
 - `exams`: `startExam` (snapshots questions at build time — editing a
   question later never rewrites a past exam), `recordExamAnswer`/
   `toggleExamFlag` (save immediately), `submitExam` (auto-scores MCQ, moves
@@ -224,7 +223,11 @@ passes ~40 lines, extract a domain service.
   `/community/submissions` (+ `/[id]/revise`), `/community/moderate`
   (admins), `/recommended`; vote and report controls on the question page,
   revision history with revert on the admin edit page.
-- Atlas `interview_prep` holds the 28 `starter-seed` questions, published.
+- Atlas `interview_prep` (AWS ap-south-1, Mumbai) holds 39 published
+  questions: 28 `starter-seed` and 11 `prep-chat-day1`. The Postman test
+  questions were removed on 2026-10-15 (backup in
+  `~/prepdeck-backups/cleanup-2026-10-15.json`); running Postman folder 1
+  against it would add them again.
 
 Stages 2 through 5 followed Stage 1 the same day rather than after a week of
 real usage (the plan's suggested pacing) — at the user's explicit request. The
