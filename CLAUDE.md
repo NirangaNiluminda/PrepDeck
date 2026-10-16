@@ -213,10 +213,15 @@ passes ~40 lines, extract a domain service.
   write returns `RATE_LIMITED` (HTTP 429).
 - UI: browse (`/`), question detail with notes, admin create/edit, onboarding
   (`/onboarding`), settings (`/settings`), practice (`/practice` is a hub —
-  daily review plus study-pack cards with progress and Continue;
-  `/practice/packs/new` builds a pack; `/practice/session?pack=|topic=`
-  runs the cards, with a Pause link; old `/practice?topic=` links
-  redirect), progress
+  daily review plus study-pack cards; `/practice/packs/new` builds a pack
+  and lands on `/practice/packs/[id]`, the **study list**: every question in
+  the pack on one page, grouped by topic, each expanding in place to its
+  answer (no navigation), with Not yet / Got it recorded as practice
+  attempts, filter tabs by status, search, expand-all and j/k/1/2 keys;
+  `getStudyPackQuestions` loads the whole pack in one query via
+  `listQuestionDetails`. `/practice/session?pack=|topic=` is the
+  flashcard mode, with a Pause link back to the list; old
+  `/practice?topic=` links redirect), progress
   (`/progress`), and exams (`/exams`, `/exams/new`, `/exams/[id]` — one
   adaptive route for building, running, self-grading and results), all
   keyboard-driven. Community: `/community` (hub), `/community/submit`,

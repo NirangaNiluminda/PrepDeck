@@ -28,6 +28,8 @@ export type {
   ImportReport,
 } from './use-cases/import-questions';
 export { sampleQuestions } from './use-cases/sample-questions';
+export { listQuestionDetails } from './use-cases/list-question-details';
+export type { ListQuestionDetailsInput } from './use-cases/list-question-details';
 export type { SampleQuestionsInput } from './use-cases/sample-questions';
 export { findSimilarQuestions } from './use-cases/find-similar-questions';
 export type { FindSimilarQuestionsInput } from './use-cases/find-similar-questions';

@@ -1,4 +1,4 @@
-import { questionMastery } from './mastery';
+import { MATURE_INTERVAL_DAYS, questionMastery } from './mastery';
 
 /** The slice of a review card that progress reads. */
 export interface CardState {
@@ -49,4 +49,17 @@ export function packProgress(questionIds: readonly string[], cards: readonly Car
     mastery,
     lastStudiedAt,
   };
+}
+
+/**
+ * Where one question stands for a learner, for labelling it in a study list:
+ * never rated, due for review now, being learned, or learned (scheduled at
+ * least as far out as mastery's "mature" interval).
+ */
+export type StudyStatus = 'new' | 'due' | 'learning' | 'learned';
+
+export function studyStatus(card: CardState | undefined, now: Date): StudyStatus {
+  if (!card) return 'new';
+  if (card.dueDate.getTime() <= now.getTime()) return 'due';
+  return card.interval >= MATURE_INTERVAL_DAYS ? 'learned' : 'learning';
 }

@@ -47,7 +47,7 @@ export interface StudyPackFormState {
   readonly error?: string;
 }
 
-/** On success, goes straight into the pack's first session. */
+/** On success, opens the pack's study list: the questions to read, each with its answer in place. */
 export async function createStudyPackAction(_previous: StudyPackFormState, formData: FormData): Promise<StudyPackFormState> {
   const session = await getSession();
   if (!session) return { error: 'Sign in to create a study pack.' };
@@ -68,7 +68,7 @@ export async function createStudyPackAction(_previous: StudyPackFormState, formD
   );
   if (!result.ok) return { error: result.error.message };
 
-  redirect(`/practice/session?pack=${result.value.id}`);
+  redirect(`/practice/packs/${result.value.id}`);
 }
 
 /**

@@ -7,7 +7,7 @@ import type { StudyPackView } from '../ports/dto';
 // topics right now. Past this many questions progress would undercount, which
 // is far beyond any corpus this app holds; a repository-level count is the
 // fix if that ever stops being true.
-const MAX_PACK_QUESTIONS = 2000;
+export const MAX_PACK_QUESTIONS = 2000;
 
 /** Narrowed from the pack's loose strings to the questions module's union — the one place that needs it. */
 export const packDifficulties = (pack: StudyPack): Difficulty[] | undefined => {

@@ -72,18 +72,20 @@ export default async function PracticeSessionPage(props: PageProps<'/practice/se
     container,
   );
 
+  // A pack's session returns to its study list; a topic or daily session to the hub.
+  const backHref = pack ? `/practice/packs/${pack.id}` : '/practice';
   const title = pack ? pack.name : topicPath ? topicLabel(topicPath.split('/').pop() ?? topicPath) : 'Daily review';
   const againHref = pack ? `/practice/session?pack=${pack.id}` : topicPath ? `/practice/session?topic=${encodeURIComponent(topicPath)}` : '/practice/session';
 
   return (
-    <Shell title={title} subtitle={pack ? packSubtitle(pack) : undefined}>
+    <Shell title={title} subtitle={pack ? packSubtitle(pack) : undefined} backHref={backHref}>
       {cards.length === 0 ? (
         <EmptyQueue pack={pack} topicPath={topicPath} newCardCap={profile.settings.newCardCap} />
       ) : (
         // PracticeSession is a Client Component and deliberately does not import
         // '@/modules/practice' (its index.ts also exports the Mongo adapter); its
         // SessionCard prop type is a local, structurally compatible echo of DueCard.
-        <PracticeSession cards={cards} exitHref="/practice" againHref={againHref} />
+        <PracticeSession cards={cards} exitHref={backHref} againHref={againHref} />
       )}
     </Shell>
   );
@@ -94,15 +96,15 @@ const packSubtitle = (pack: StudyPackView) => {
   return `${started} of ${total} started${due > 0 ? ` · ${due} due` : ''}`;
 };
 
-function Shell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Shell({ title, subtitle, backHref = '/practice', children }: { title: string; subtitle?: string; backHref?: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-6">
       <div className="mb-5 flex items-center justify-between gap-3">
         <Link
-          href="/practice"
+          href={backHref}
           className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-sm font-semibold text-zinc-600 shadow-sm ring-1 ring-inset ring-line hover:text-brand-700 dark:text-zinc-300 dark:hover:text-brand-300"
         >
-          ← All practice
+          {backHref === '/practice' ? '← All practice' : '← Study list'}
         </Link>
         <div className="min-w-0 text-right">
           <p className="truncate text-sm font-extrabold text-zinc-900 dark:text-zinc-50">{title}</p>

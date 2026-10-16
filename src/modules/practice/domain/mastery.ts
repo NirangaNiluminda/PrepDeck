@@ -1,7 +1,7 @@
 import { EASE_DEFAULT, EASE_MIN } from './scheduler';
 
 /** Interval, in days, at which a card counts as durably learned rather than freshly graduated. */
-const MATURE_INTERVAL_DAYS = 21;
+export const MATURE_INTERVAL_DAYS = 21;
 
 /**
  * A 0–100 heuristic from a card's own schedule state, not a separate score

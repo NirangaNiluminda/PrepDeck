@@ -9,16 +9,15 @@ const MAX_TOPICS_SHOWN = 3;
 export function StudyPackCard({ pack, now, highlight }: { pack: StudyPackView; now: Date; highlight: boolean }) {
   const { total, started, due, notStarted, mastery, lastStudiedAt } = pack.progress;
   const percent = total ? Math.round((started / total) * 100) : 0;
-  const href = `/practice/session?pack=${pack.id}`;
+  const studyHref = `/practice/packs/${pack.id}`;
+  const flashcardHref = `/practice/session?pack=${pack.id}`;
 
-  const cta =
-    started === 0
-      ? { label: '▶ Start', tone: 'primary' }
-      : due > 0
-        ? { label: `▶ Continue · ${due} due`, tone: 'primary' }
-        : notStarted > 0
-          ? { label: '▶ Continue', tone: 'primary' }
-          : { label: '✓ All caught up', tone: 'quiet' };
+  const flashcards =
+    due > 0
+      ? { label: `🧠 ${due} due`, done: false }
+      : started > 0 && notStarted === 0
+        ? { label: '✓ All caught up', done: true }
+        : { label: '🧠 Flashcards', done: false };
 
   return (
     <article
@@ -33,7 +32,11 @@ export function StudyPackCard({ pack, now, highlight }: { pack: StudyPackView; n
       )}
 
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-lg font-extrabold leading-snug tracking-tight text-zinc-900 dark:text-zinc-50">{pack.name}</h3>
+        <h3 className="text-lg font-extrabold leading-snug tracking-tight text-zinc-900 dark:text-zinc-50">
+          <Link href={studyHref} className="hover:text-brand-700 hover:underline dark:hover:text-brand-300">
+            {pack.name}
+          </Link>
+        </h3>
         <details className="relative shrink-0">
           <summary
             aria-label={`More actions for ${pack.name}`}
@@ -94,19 +97,27 @@ export function StudyPackCard({ pack, now, highlight }: { pack: StudyPackView; n
         <Stat label="mastery" value={mastery === undefined ? '—' : `${mastery}%`} emoji="🎯" />
       </dl>
 
-      <div className="mt-auto flex items-center justify-between gap-3 pt-5">
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          {lastStudiedAt ? `Studied ${formatDaysAgo(lastStudiedAt, now)}` : 'Not started yet'}
-        </span>
+      <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+        {lastStudiedAt ? `Studied ${formatDaysAgo(lastStudiedAt, now)}` : 'Not started yet'}
+      </p>
+      {/* Two ways in: read the questions with answers in place, or test
+          yourself one card at a time. Both record into the same progress. */}
+      <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
         <Link
-          href={href}
-          className={
-            cta.tone === 'primary'
-              ? 'rounded-full bg-gradient-to-r from-brand-600 to-fuchsia-500 px-4 py-2 text-sm font-bold text-white shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5'
-              : 'rounded-full px-4 py-2 text-sm font-bold text-emerald-700 ring-1 ring-inset ring-emerald-300 hover:bg-emerald-50 dark:text-emerald-300 dark:ring-emerald-400/30 dark:hover:bg-emerald-400/10'
-          }
+          href={studyHref}
+          className="rounded-full bg-gradient-to-r from-brand-600 to-fuchsia-500 px-4 py-2 text-center text-sm font-bold text-white shadow-md shadow-brand-600/25 transition hover:-translate-y-0.5"
         >
-          {cta.label}
+          📖 Study list
+        </Link>
+        <Link
+          href={flashcardHref}
+          className={`rounded-full px-4 py-2 text-center text-sm font-bold ring-1 ring-inset transition ${
+            !flashcards.done
+              ? 'text-brand-700 ring-brand-300 hover:bg-brand-50 dark:text-brand-300 dark:ring-brand-400/30 dark:hover:bg-brand-400/10'
+              : 'text-emerald-700 ring-emerald-300 hover:bg-emerald-50 dark:text-emerald-300 dark:ring-emerald-400/30 dark:hover:bg-emerald-400/10'
+          }`}
+        >
+          {flashcards.label}
         </Link>
       </div>
     </article>

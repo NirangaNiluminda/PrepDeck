@@ -17,6 +17,8 @@ export type { ListStudyPacksInput } from './use-cases/list-study-packs';
 export { getStudyPack } from './use-cases/get-study-pack';
 export type { GetStudyPackInput } from './use-cases/get-study-pack';
 export { archiveStudyPack } from './use-cases/archive-study-pack';
+export { getStudyPackQuestions } from './use-cases/get-study-pack-questions';
+export type { GetStudyPackQuestionsInput, StudyPackItem, StudyPackContents } from './use-cases/get-study-pack-questions';
 export type { ArchiveStudyPackInput } from './use-cases/archive-study-pack';
 
 // Contracts other modules legitimately need.
@@ -26,8 +28,8 @@ export type { ReviewScheduler, ReviewState } from './ports/review-scheduler';
 export type { DueCard, ProgressSummary, StudyPackView } from './ports/dto';
 export type { StudyPackRepository } from './ports/study-pack-repository';
 export { StudyPack, MAX_PACK_NAME_LENGTH, MAX_PACK_TOPICS } from './domain/study-pack';
-export { packProgress } from './domain/pack-progress';
-export type { PackProgress, CardState } from './domain/pack-progress';
+export { packProgress, studyStatus } from './domain/pack-progress';
+export type { PackProgress, CardState, StudyStatus } from './domain/pack-progress';
 export { RATINGS } from './domain/rating';
 export type { Rating } from './domain/rating';
 export { questionMastery, buildTopicMastery, weakestTopics } from './domain/mastery';

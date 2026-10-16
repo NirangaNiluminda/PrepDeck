@@ -11,9 +11,11 @@ import {
   getDueQueue,
   getProgress,
   getStudyPack,
+  getStudyPackQuestions,
   getWeakAreas,
   listStudyPacks,
   packProgress,
+  studyStatus,
   recordAttempt,
   sm2Scheduler,
 } from '@/modules/practice';
@@ -467,5 +469,53 @@ describe('getDueQueue with a study pack\'s filters', () => {
       [dbEasy, false],
       [webEasy, true],
     ]);
+  });
+});
+
+describe('studyStatus', () => {
+  const now = new Date('2026-01-15T10:00:00Z');
+  const card = (interval: number, dueDate: string) => ({
+    questionId: 'q', interval, easeFactor: 2.5, dueDate: new Date(dueDate), updatedAt: now,
+  });
+
+  it('labels a question new, due, learning or learned from its card', () => {
+    expect(studyStatus(undefined, now)).toBe('new');
+    expect(studyStatus(card(6, '2026-01-15T09:00:00Z'), now)).toBe('due');
+    expect(studyStatus(card(6, '2026-01-20T10:00:00Z'), now)).toBe('learning');
+    expect(studyStatus(card(30, '2026-02-14T10:00:00Z'), now)).toBe('learned');
+  });
+});
+
+describe('getStudyPackQuestions', () => {
+  it('lists the pack\'s questions with answers and each one\'s status, grouped by topic', async () => {
+    const d = buildDeps();
+    const modelling = await seedPublished(d, { topicPath: 'databases/modelling', stem: 'What is normalisation, briefly?' });
+    const indexing = await seedPublished(d, { topicPath: 'databases/indexing', stem: 'What does an index cost on writes?' });
+    await seedPublished(d, { topicPath: 'web/http', stem: 'What does HTTP 401 mean, exactly?' });
+    const created = await createStudyPack({ userId: 'u1', name: 'DB', topicPaths: ['databases'] }, { ...d, ids: sequentialIds('pack') });
+    if (!created.ok) throw new Error(created.error.message);
+    await recordAttempt({ userId: 'u1', questionId: indexing, rating: 'good', timeTakenMs: 0 }, d);
+
+    const result = await getStudyPackQuestions({ userId: 'u1', packId: created.value.id, now: d.clock.now() }, d);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.items.map((i) => [i.question.id, i.status])).toEqual([
+      [indexing, 'learning'],
+      [modelling, 'new'],
+    ]);
+    expect(result.value.items[0].question.answer?.modelAnswer).toBeTruthy();
+    expect(result.value.pack.progress).toMatchObject({ total: 2, started: 1 });
+  });
+
+  it('returns NOT_FOUND for someone else\'s pack', async () => {
+    const d = buildDeps();
+    await seedPublished(d, { topicPath: 'databases/indexing', stem: 'Another database question here?' });
+    const created = await createStudyPack({ userId: 'u2', name: 'Theirs', topicPaths: ['databases'] }, { ...d, ids: sequentialIds('pack') });
+    if (!created.ok) throw new Error(created.error.message);
+
+    const result = await getStudyPackQuestions({ userId: 'u1', packId: created.value.id, now: d.clock.now() }, d);
+
+    expect(result.ok ? null : result.error.code).toBe('NOT_FOUND');
   });
 });

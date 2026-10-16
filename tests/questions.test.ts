@@ -14,6 +14,7 @@ import {
   importQuestions,
   sampleQuestions,
   findSimilarQuestions,
+  listQuestionDetails,
   listQuestionRevisions,
   revertQuestion,
   type ImportQuestionItem,
@@ -155,6 +156,16 @@ describe('searchQuestions', () => {
 
     expect(oldest).toEqual([...oldest].sort());
     expect(await ids('newest')).toEqual([...oldest].reverse());
+  });
+
+  it('listQuestionDetails returns only published questions, with their answers, in one call', async () => {
+    const all = (await searchQuestions({ viewerIsAdmin: true, sort: 'oldest' }, d)).items;
+    await publishQuestion({ id: all[0].id, moderatorId: 'admin', moderatorIsAdmin: true }, d);
+
+    const details = await listQuestionDetails({}, d);
+
+    expect(details.map((q) => q.id)).toEqual([all[0].id]);
+    expect(details[0].answer?.modelAnswer).toBeTruthy();
   });
 
   it('hides unpublished questions from learners', async () => {
