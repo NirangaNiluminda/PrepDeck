@@ -56,6 +56,11 @@ const TOPIC_STYLES: Record<string, TopicStyle> = {
     chip: 'bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-400/10 dark:text-indigo-300 dark:ring-indigo-400/25',
     accent: 'bg-indigo-400',
   },
+  react: {
+    emoji: '⚛️',
+    chip: 'bg-cyan-50 text-cyan-700 ring-cyan-200 dark:bg-cyan-400/10 dark:text-cyan-300 dark:ring-cyan-400/25',
+    accent: 'bg-cyan-400',
+  },
   security: {
     emoji: '🔐',
     chip: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-400/10 dark:text-rose-300 dark:ring-rose-400/25',
