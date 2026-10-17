@@ -228,9 +228,12 @@ passes ~40 lines, extract a domain service.
   `/community/submissions` (+ `/[id]/revise`), `/community/moderate`
   (admins), `/recommended`; vote and report controls on the question page,
   revision history with revert on the admin edit page.
-- Atlas `interview_prep` (AWS ap-south-1, Mumbai) holds 57 published
-  questions: 28 `starter-seed`, 11 `prep-chat-day1` and 18 `mosh-react-s01`
-  (`react/getting-started`, one subtopic per course section). The Postman test
+- Atlas `interview_prep` (AWS ap-south-1, Mumbai) holds 194 published
+  questions: 28 `starter-seed`, 11 `prep-chat-day1`, and 155 from Mosh's
+  "Mastering React" course (`source: mosh-react-sNN`, tag `mosh-react`):
+  `javascript/es6` for its ES6 section and one `react/<section>` subtopic
+  per other section. Written in our own words and modernised (hooks,
+  React Router v6+, Vite, Zod, TanStack Query) where the 2018 course aged. The Postman test
   questions were removed on 2026-10-15 (backup in
   `~/prepdeck-backups/cleanup-2026-10-15.json`); running Postman folder 1
   against it would add them again.
