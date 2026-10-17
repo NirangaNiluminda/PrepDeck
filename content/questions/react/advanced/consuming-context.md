@@ -29,10 +29,13 @@ class MovieList extends Component {
   render() { return <div>{this.context.currentUser?.name}</div>; }
 }
 ```
-This only allows **one** context per class.
+This only allows **one** context per class. Equivalently, assign it after
+the class: `MovieList.contextType = UserContext;`.
 
 **Class component, option 2: `<Context.Consumer>` with a render function.**
-Works inside `render`, with any number of contexts:
+Works inside `render`, with any number of contexts. Its child **must be a
+function** that receives the value. A plain element child fails with
+*"render is not a function"*:
 ```jsx
 <UserContext.Consumer>
   {userContext => <div>Movie List {userContext.currentUser?.name}</div>}
@@ -40,7 +43,9 @@ Works inside `render`, with any number of contexts:
 ```
 
 When the Provider's `value` changes, **every component that reads that
-context re-renders**.
+context re-renders**. `useContext` also keeps the component tree cleaner: a
+`Consumer` adds an extra node to the tree in React DevTools, and a hook
+doesn't.
 
 ## Key points
 - function components: const value = useContext(Ctx)

@@ -15,8 +15,10 @@ the language, the cart) has to be passed as props through every intermediate
 component, even ones that don't use it. In the course's example, `App` →
 `MoviePage` → `MovieList` → `MovieRow` all just pass the user along.
 
-**Context** lets a component **provide** a value, and **any descendant read it
-directly**:
+Before Context became practical, **Redux** was the usual answer: one global
+**store** that any component can read from, at the cost of considerable
+boilerplate and complexity. **Context** is React's built-in solution. A
+component **provides** a value, and **any descendant reads it directly**:
 
 ```jsx
 // context/userContext.js

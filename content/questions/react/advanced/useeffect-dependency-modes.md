@@ -10,6 +10,11 @@ source: mosh-react-s11
 When does an effect run with no dependency array, with `[]`, and with `[a, b]`? When does its cleanup run?
 
 ## Answer
+In a class, related logic was split across **three** lifecycle methods
+(`componentDidMount`, `componentDidUpdate`, `componentWillUnmount`).
+`useEffect` keeps it in **one place**, and the dependency array controls when
+it runs:
+
 | Written as | Runs |
 |---|---|
 | `useEffect(fn)` (**no array**) | after **every** render |
@@ -28,8 +33,13 @@ useEffect(() => {
 
 Effects run **after** React has updated the DOM. The dependency array must
 list **every value from the component that the effect uses** (props, state,
-functions); the `react-hooks/exhaustive-deps` lint rule checks it. Leaving one
-out gives the effect stale values.
+functions). Leave one out and the lint rule warns: *"React Hook useEffect has
+a missing dependency: 'name'. Either include it or remove the dependency
+array."* Ignoring it gives the effect stale values.
+
+Running cleanup and setup on every render can be expensive, e.g. dropping
+and re-opening a network connection on every keystroke. That's what the
+dependency array prevents.
 
 ## Key points
 - no array: after every render

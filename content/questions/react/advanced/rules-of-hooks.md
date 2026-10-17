@@ -22,8 +22,12 @@ Which of these breaks the rules of hooks?
 2. **Call hooks only from function components or custom hooks**, not from
    regular functions or classes.
 
+React reports it as: *"React Hook "useState" is called conditionally. React
+Hooks must be called in the exact same order in every component render."*
+
 **Why:** React doesn't identify hooks by name. It keeps each component's
-hook state in a **list, in call order**. If a hook is called on one render
+hook state in a **list, in call order**: the first `useState` call gets slot
+1, the second slot 2, and so on, on every render. If a hook is called on one render
 but skipped on the next, every later hook reads the wrong slot. Put the
 condition **inside** the hook or in the JSX instead. The
 `eslint-plugin-react-hooks` lint rule catches violations.
